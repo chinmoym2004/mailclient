@@ -137,6 +137,38 @@ class GmailController extends Controller
 		}
 	}
 
+	public function sendEmail(Request $request) {
+		$user = User::find(1);
+		$client = $this->isValidToken($user->google_token);
+		if($client)
+		{
+			try {
+				$service = new \Google_Service_Gmail($client);
+			
+				$user = 'me';
+				$message = new \Swift_Message();
+				$message->setFrom("reachus.ootb@gmail.com");
+				$message->setTo(['muthusharp1st@gmail.com'=>'Marimuthu']);
+				$message->setBody('Here is my body');
+				$message->setSubject('Here is my subject');
+				$message->toString();
+			
+				// The message needs to be encoded in Base64URL
+				$mime = rtrim(strtr(base64_encode($message), '+/', '-_'), '=');
+				$msg = new \Google_Service_Gmail_Message();
+				$msg->setRaw($mime);
+		
+				$service->users_messages->send("me", $msg);
+			} catch (Exception $e) {
+				echo $e->getMessage();
+			}
+			
+		}else
+		{
+			return redirect('/gmail/auth');
+		}
+	}
+
 	public function myInbox2(Request $request)
 	{
 		$user = User::find(1);
@@ -162,7 +194,7 @@ class GmailController extends Controller
         	
 
 			$mails = $service->users_messages->listUsersMessages($user, $optParams);
-			
+
 
 			//$threads = $service->users_threads->listUsersThreads($user,['maxResults'=>20]);
 			//dd($threads);exit;
