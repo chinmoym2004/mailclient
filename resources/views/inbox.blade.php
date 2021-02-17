@@ -80,7 +80,7 @@
 					</div>
 				</div>
 				<div>
-					<a href="{{url('inbox/page='.$threads->nextPageToken)}}">Load Next Page</a>
+					<a href="{{url('threads?page='.$threads->nextPageToken)}}">Load Next Page</a>
 				</div>
 			</td>
 		</tr>

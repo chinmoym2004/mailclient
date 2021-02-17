@@ -137,7 +137,7 @@ class GmailController extends Controller
 		}
 	}
 
-	public function myInbox2()
+	public function myInbox2(Request $request)
 	{
 		$user = User::find(1);
 
@@ -149,17 +149,38 @@ class GmailController extends Controller
 			$user = 'me';
 			$labels = $service->users_labels->listUsersLabels($user);
 
-			$mails = $service->users_messages->listUsersMessages($user,['maxResults'=>20]);
-			dd($mails);exit;
+			$optParams = [];
+        	$optParams['maxResults'] = 20; // Return Only 20 Messages
+
+        	if(!empty($request->label)) {
+        		$optParams['labelIds'] = $request->label; // Show messages based on the lave
+        	}
+
+        	if(!empty($request->pageToken)) {
+        		$optParams['pageToken'] = $request->pageToken; // Page Token
+        	}
+        	
+
+			$mails = $service->users_messages->listUsersMessages($user, $optParams);
+			
 
 			//$threads = $service->users_threads->listUsersThreads($user,['maxResults'=>20]);
 			//dd($threads);exit;
 
-			foreach($mails->getMessages() as $message)
+			/*foreach($mails->getMessages() as $message)
 			{
-
+				$full = $service->users_messages->get('me',$message->getId(),['format'=>['FULL']]);
+				$headers = $full->payload->headers;
+				$parts = $full->getPayload();
+				dd($parts);
+				exit;
+				$body = $parts[0]['body']; //We can use 0 or 1
+    			$rawData = $body->data;
+    			$sanitizedData = strtr($rawData,'-_', '+/');
+        		$decodedMessage = base64_decode($sanitizedData);
+				
 						//Message ID :{{$message->getId()}}, Thread ID : {{$message->getThreadId()}}
-			}
+			}*/
 
 			if (count($labels->getLabels()) == 0) 
 			{

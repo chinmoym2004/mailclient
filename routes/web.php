@@ -20,8 +20,12 @@ Route::get('/', function () {
 
 Route::get('/gmail/auth','App\Http\Controllers\GmailController@authorization');
 Route::get('/mail','App\Http\Controllers\GmailController@callback');
-Route::get('/inbox','App\Http\Controllers\GmailController@myInbox2');
+Route::get('/inbox','App\Http\Controllers\GmailController@myInbox2')->name("inbox");
 Route::get('/threads','App\Http\Controllers\GmailController@myInbox');
 
 
 
+
+Auth::routes();
+
+Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
