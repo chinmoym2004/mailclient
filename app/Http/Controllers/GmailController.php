@@ -16,7 +16,7 @@ class GmailController extends Controller
 	    $client = new Google_Client();
 	    //$client->setApplicationName('Gmail API PHP Quickstart');
 	    $client->setScopes(Google_Service_Gmail::MAIL_GOOGLE_COM);
-	    $client->setAuthConfig(public_path().'/client_id.json');
+	    $client->setAuthConfig(public_path().'/client_id_marimuthu.json');
 	    $client->setAccessType('offline');
 	    //$client->setRedirectUri('/mail');
 	    $client->setPrompt('select_account consent');
@@ -169,6 +169,23 @@ class GmailController extends Controller
 		}
 	}
 
+	public function getAttachments($service , $message_id, $parts) {
+		$attachments = [];
+		foreach ($parts as $part) {
+			if (!empty($part->body->attachmentId)) {
+				$attachment = $service->users_messages_attachments->get('me', $message_id, $part->body->attachmentId);
+				$attachments[] = [
+					'filename' => $part->filename,
+					'mimeType' => $part->mimeType,
+					'data'     => strtr($attachment->data, '-_', '+/')
+				];
+			} else if (!empty($part->parts)) {
+				//$attachments = array_merge($attachments, $this->getAttachments($service, $message_id, $part->parts));
+			}
+		}
+		return $attachments;
+	}
+
 	public function myInbox2(Request $request)
 	{
 		$user = User::find(1);
@@ -199,12 +216,17 @@ class GmailController extends Controller
 			//$threads = $service->users_threads->listUsersThreads($user,['maxResults'=>20]);
 			//dd($threads);exit;
 
-			/*foreach($mails->getMessages() as $message)
+			/* foreach($mails->getMessages() as $message)
 			{
 				$full = $service->users_messages->get('me',$message->getId(),['format'=>['FULL']]);
 				$headers = $full->payload->headers;
 				$parts = $full->getPayload();
-				dd($parts);
+
+				$attachments = $this->getAttachments($service, $message->id, $parts);
+
+	
+				echo "<pre/>";
+				print_r($attachments);
 				exit;
 				$body = $parts[0]['body']; //We can use 0 or 1
     			$rawData = $body->data;
@@ -212,7 +234,7 @@ class GmailController extends Controller
         		$decodedMessage = base64_decode($sanitizedData);
 				
 						//Message ID :{{$message->getId()}}, Thread ID : {{$message->getThreadId()}}
-			}*/
+			} */
 
 			if (count($labels->getLabels()) == 0) 
 			{
