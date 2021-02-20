@@ -204,7 +204,6 @@
 					</div>
 				</div>
 				<div>
-					{{ $mails->nextPageToken }}
 					<a href="{{ route('inbox', [ 'pageToken' => $mails->nextPageToken]) }}">Load Next Page</a>
 				</div>
 			</div>

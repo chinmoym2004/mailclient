@@ -70,7 +70,7 @@ class GmailController extends Controller
             if(!$client->getAccessToken())
             	return redirect('/gmail/auth');
 
-            return redirect('/inbox');
+            return redirect()->route('threads');
 		}
 		else
 		{
@@ -99,8 +99,9 @@ class GmailController extends Controller
 	}
 
 
-	public function myInbox()
+	public function myInbox(Request $request)
 	{
+		
 		$user = User::find(1);
 
 		$client = $this->isValidToken($user->google_token);
@@ -114,7 +115,26 @@ class GmailController extends Controller
 			//$mails = $service->users_messages->listUsersMessages($user,['maxResults'=>20]);
 			//dd($mails);exit;
 
-			$threads = $service->users_threads->listUsersThreads($user,['maxResults'=>20]);
+			$optParams = [];
+        	$optParams['maxResults'] = 20; // Return Only 20 Messages
+
+        	if(!empty($request->label)) {
+
+        		$optParams['labelIds'] = $request->label; // Show messages based on the lave
+        	} else {
+				$optParams['labelIds'] = "INBOX";
+			}
+
+
+        	if(!empty($request->pageToken)) {
+        		$optParams['pageToken'] = $request->pageToken; // Page Token
+        	}
+        	
+
+			$threads = $service->users_threads->listUsersThreads($user, $optParams);
+
+
+			//$threads = $service->users_threads->listUsersThreads($user,['maxResults'=>20]);
 			//dd($threads);exit;
 
 			if (count($labels->getLabels()) == 0) 
@@ -147,8 +167,8 @@ class GmailController extends Controller
 			
 				$user = 'me';
 				$message = new \Swift_Message();
-				$message->setFrom("reachus.ootb@gmail.com");
-				$message->setTo(['muthusharp1st@gmail.com'=>'Marimuthu']);
+				$message->setFrom("muthusharp1st@gmail.com");
+				$message->setTo(['marimuthu.m@dsignzmedia.in'=>'Marimuthu']);
 				$message->setBody('Here is my body');
 				$message->setSubject('Here is my subject');
 				$message->toString();

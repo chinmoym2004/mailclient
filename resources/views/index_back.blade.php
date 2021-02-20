@@ -87,6 +87,7 @@
 						    <div id="collapse{{$thread->getId()}}" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
 						      <div class="accordion-body">
 						        	<div class="card card-body">
+                                    <?php /*
 								      	<ul>
 											@foreach($messages as $message)
 												
@@ -120,8 +121,9 @@
 												</ol>
 
 											@endforeach
-										</ul>
-								      </div>
+                                        </ul>
+                                      */?>
+								    </div>
 						      </div>
 						    </div>
 						</div>
