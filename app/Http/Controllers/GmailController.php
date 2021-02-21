@@ -143,7 +143,7 @@ class GmailController extends Controller
 			} 
 			else 
 			{
-				return view("inbox",compact('labels','threads','service'));
+				return view("threads",compact('labels','threads','service'));
 
 			  // print "Labels:\n";
 			  // foreach ($results->getLabels() as $label) {
@@ -274,5 +274,10 @@ class GmailController extends Controller
 		{
 			return redirect('/gmail/auth');
 		}
+	}
+
+	public function threadJs()
+	{
+		return view('inbox_readonly');
 	}
 }

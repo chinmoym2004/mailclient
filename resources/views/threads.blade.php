@@ -51,7 +51,11 @@
 					
 					@endphp
 					@foreach($threads->getThreads() as $thread)
-						@php 
+						@php
+
+						$printH=[];
+						$message='';
+
 						$fullthread = $service->users_threads->get('me',$thread->getId(),['format'=>['METADATA']]);
 						$messages = $fullthread->messages;
 						$messagesCount = count($messages);
@@ -74,7 +78,7 @@
 						}
 
 						date("Y-m-d H:i:s", strtotime($printH["Date"]));
-						
+						$i=1;
 						
 						@endphp 
 						
@@ -109,6 +113,7 @@
 												@endphp
 									
 												<ol>
+													<h5>Mail #{{$i++}}</h5>
 													<b>Delivered-To</b>: {{$printH['Delivered-To'] ?? '--'}}<br/>
 													<b>Labels</b>: {{is_array($labelIds) ? implode(', ', $labelIds) : '--'}}<br/>
 													<b>To:</b> {{$printH['To'] ?? '--'}}<br/>
