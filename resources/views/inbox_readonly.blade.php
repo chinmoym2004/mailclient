@@ -14,6 +14,7 @@
         height: 600px;
         display: flex;
       }
+      .d-none { display: none; }
     </style>
   </head>
   <body>
@@ -31,7 +32,11 @@
           </tr>
         </thead>
         <tbody></tbody>
+        <tfoot>
+         
+        </tfoot>
       </table>
+      <a href="javascript:;" class="d-none" id="next_page">Next</a>
     </div>
 
     <script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
@@ -41,6 +46,9 @@
       var clientId = '829350265191-q61efgj7djcmbnukqo244281die8027d.apps.googleusercontent.com';
       var apiKey = 'AIzaSyCXcJMMObbpueWGqnhmp_Bckhqj-WYMwvI';
       var scopes = 'https://www.googleapis.com/auth/gmail.readonly';
+      var nextPageToken = "";
+      var previousToken = "";
+      var headersArray = [];
 
       function handleClientLoad() {
         gapi.client.setApiKey(apiKey);
@@ -61,7 +69,7 @@
           scope: scopes,
           immediate: false
         }, handleAuthResult);
-        return false;
+        return false; 
       }
 
       function handleAuthResult(authResult) {
@@ -91,18 +99,23 @@
           // });
 
           // Each single thread (included multile message)
-          var request = gapi.client.gmail.users.threads.list({
+          var optParams = {
             'userId': 'me',
             'labelIds': 'INBOX',
             'maxResults': 20
-          });
+          };
+          if(nextPageToken != null && nextPageToken != "null" && nextPageToken != undefined) {
+            optParams.pageToken = nextPageToken;
+          }
+          console.log(optParams);
+          var request = gapi.client.gmail.users.threads.list(optParams);
 
         // console.log(request);
 
           request.execute(function(response) 
           {
-            //console.log(response);
-
+            console.log(response);
+            $('.table-inbox tbody').html("");
             $.each(response.threads, function() {
                 var threadRequest = gapi.client.gmail.users.threads.get({
                   'userId': 'me',
@@ -112,6 +125,12 @@
                 threadRequest.execute(appendThreadRow);
 
             });
+
+          
+            if(response.nextPageToken) {
+              nextPageToken = response.nextPageToken; 
+              $("#next_page").removeClass("d-none").attr("onclick", "loadNextPage()");
+            }
               // $.each(response.messages, function() {
               //   var messageRequest = gapi.client.gmail.users.messages.get({
               //     'userId': 'me',
@@ -122,6 +141,42 @@
               // });
         });
       }
+
+      function loadNextPage() {
+        var encodedResponse = btoa(
+          "Content-Type: text/plain; charset=\"UTF-8\"\n" +
+          "MIME-Version: 1.0\n" +
+          "Content-Transfer-Encoding: 7bit\n" +
+          "Subject: Subject of the original mail\n" +
+          "From: reachus.ootb@gmail.com\n" +
+          "To: muthusharp1st@gmail.com\n\n" +
+
+          "This is where the response text will go"
+        ).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+        $.ajax({
+          url: "https://www.googleapis.com/gmail/v1/users/me/messages/send?access_token=ya29.A0AfH6SMCAdQ6aqggy0wGHjds_-DTAB9y0gSdHMoEcfoLCjh3KNm-LjXwNENCC5941PsVdM-I-TE2NELRK4Pe_q26-LgpY05gnasmWi1qswZNccUupwZlZi7BqTI_k61jIKWKO-sRbh9D1dLBXFFSfzMvbQ4Vi",
+          method: "POST",
+          contentType: "application/json",
+          data: JSON.stringify({           
+            raw: encodedResponse,
+            threadId: "177c5ad739c6b76a"
+          }),
+          success: function(res) {
+            console.log(res);
+          },
+          error : function(error) {
+            console.log(error);
+          }
+        });
+        //displayInbox();
+      }
+
+      
+      function replyThread(threadId) {
+        console.log(threadId);
+      }
+
 
       function appendThreadRow(thread)
       {
@@ -178,6 +233,16 @@
                 html+="<hr/>";
                 count++;
               });
+              var threadId = '"'+thread.id+'"';
+              var form = "<form>";
+              form += "<div class='col-12'>";
+              form += "<textarea name='reply' class='form-control' id='reply_"+thread.id+"'></textarea>";
+              form += "</div>";
+              form += "<div class='col-12'>";
+              form += "<button type='button' name='submit' onclick='replyThread("+threadId+")'>Submit</submit>";
+              form += "</div>";
+              form += "</form>";
+              html += form;
               console.log(html);
 
               $('body', ifrm).html(html);
@@ -227,7 +292,8 @@
 
         $('#message-link-'+message.id).on('click', function(){
           var ifrm = $('#message-iframe-'+message.id)[0].contentWindow.document;
-          $('body', ifrm).html(getBody(message.payload));
+          var body = getBody(message.payload);
+          $('body', ifrm).html(body);
         });
       }
 
