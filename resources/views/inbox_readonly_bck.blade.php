@@ -143,7 +143,33 @@
       }
 
       function loadNextPage() {
-        displayInbox();
+        var encodedResponse = btoa(
+          "Content-Type: text/plain; charset=\"UTF-8\"\n" +
+          "MIME-Version: 1.0\n" +
+          "Content-Transfer-Encoding: 7bit\n" +
+          "Subject: Subject of the original mail\n" +
+          "From: reachus.ootb@gmail.com\n" +
+          "To: muthusharp1st@gmail.com\n\n" +
+
+          "This is where the response text will go"
+        ).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+        $.ajax({
+          url: "https://www.googleapis.com/gmail/v1/users/me/messages/send?access_token="+$("#accessToken").val(),
+          method: "POST",
+          contentType: "application/json",
+          data: JSON.stringify({           
+            raw: encodedResponse,
+            threadId: "177c5ad739c6b76a"
+          }),
+          success: function(res) {
+            console.log(res);
+          },
+          error : function(error) {
+            console.log(error);
+          }
+        });
+        //displayInbox();
       }
 
       
@@ -157,14 +183,15 @@
             console.log(thread);
             var firstMessage = thread.messages[0];
             var lastMessage = thread.messages[ thread.messages.length - 1 ];
-            var subject = getHeader(firstMessage.payload.headers, 'Subject');
 
             $('.table-inbox tbody').append(
               '<tr>\
                 <td>'+getHeader(firstMessage.payload.headers, 'From')+'</td>\
                 <td>\
-                <a href="/readonly-inbox/' + thread.id +'?subject='+subject+'">' +
-                    subject+'  (#'+thread.messages.length+')'+'</a>\
+                  <a threadid="'+ thread.id +'" href="#message-modal-' + thread.id +
+                    '" data-toggle="modal" id="message-link-' + thread.id+'">' +
+                    getHeader(firstMessage.payload.headers, 'Subject')+'  (#'+thread.messages.length+')'+
+                  '</a>\
                 </td>\
                 <td>'+getHeader(lastMessage.payload.headers, 'Date')+'</td>\
               </tr>'

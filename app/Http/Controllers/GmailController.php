@@ -278,6 +278,31 @@ class GmailController extends Controller
 
 	public function threadJs()
 	{
-		return view('inbox_readonly');
+		$user = User::find(1);
+
+		$accessToken = "";
+		$client = $this->isValidToken($user->google_token);
+		if($client)
+		{
+			$accessToken = json_decode($user->google_token, TRUE)['access_token'];
+			return view('inbox_readonly', compact("accessToken"));
+		} else{
+			return redirect('/gmail/auth');
+		}
+	}
+
+	public function singleThreadJs(Request $request, $threadId) {
+		$user = User::find(1);
+
+		$accessToken = "";
+		$client = $this->isValidToken($user->google_token);
+		if($client)
+		{
+			$subject = $request->subject;
+			$accessToken = json_decode($user->google_token, TRUE)['access_token'];
+			return view('inbox_readonly_single', compact("accessToken", "threadId", "subject"));
+		} else{
+			return redirect('/gmail/auth');
+		}
 	}
 }
