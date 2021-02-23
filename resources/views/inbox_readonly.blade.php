@@ -3,7 +3,7 @@
   <head>
     <title>Gmail Thread APi demo</title>
     <meta charset="UTF-8">
-
+    <meta name="csrf-token" id="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
     <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css">
     <style>
@@ -62,7 +62,7 @@
           immediate: true
         }, handleAuthResult);
       }
-
+ 
       function handleAuthClick() {
         gapi.auth.authorize({
           client_id: clientId,
@@ -74,6 +74,8 @@
 
       function handleAuthResult(authResult) {
         if(authResult && !authResult.error) {
+          console.log(authResult);
+          //updateUserToken(authResult);
           loadGmailApi();
           $('#authorize-button').remove();
           $('.table-inbox').removeClass("hidden");
@@ -85,6 +87,23 @@
         }
       }
 
+      function updateUserToken(authResult) {
+
+        $.ajax({
+          url: "{{ route('updateusertoken') }}",
+          method: "POST",
+          contentType: "application/json",
+          headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')},
+          data: JSON.stringify(authResult),
+          success: function(res) {
+            console.log(res);
+          },
+          error : function(error) {
+            console.log(error);
+           
+          }
+        });
+      }
       function loadGmailApi() {
         gapi.client.load('gmail', 'v1', displayInbox);
       }
@@ -125,7 +144,7 @@
                 threadRequest.execute(appendThreadRow);
 
             });
-
+ 
           
             if(response.nextPageToken) {
               nextPageToken = response.nextPageToken; 
@@ -135,7 +154,7 @@
               //   var messageRequest = gapi.client.gmail.users.messages.get({
               //     'userId': 'me',
               //     'id': this.id
-              //   });
+              //   }); 
 
               //   messageRequest.execute(appendMessageRow);
               // });

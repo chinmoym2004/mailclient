@@ -25,6 +25,9 @@ Route::get('/threads','App\Http\Controllers\GmailController@myInbox')->name("thr
 Route::get('/readonly-inbox','App\Http\Controllers\GmailController@threadJs')->name("threadsjs");
 Route::get('/readonly-inbox/{thredId}','App\Http\Controllers\GmailController@singleThreadJs')->name("singlethreadsjs");
 
+Route::get('/readonly-inbox/{thredId}/php','App\Http\Controllers\GmailController@singleThreadphp')->name("singlethreadsjsphp");
+
+Route::post('/update-token','App\Http\Controllers\GmailController@updateToken')->name("updateusertoken");
 
 
 

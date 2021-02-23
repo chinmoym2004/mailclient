@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Google_Client;
 use Google_Service_Gmail;
 use App\Models\User;
+use File;
 
 class GmailController extends Controller
 {
@@ -279,7 +280,6 @@ class GmailController extends Controller
 	public function threadJs()
 	{
 		$user = User::find(1);
-
 		$accessToken = "";
 		$client = $this->isValidToken($user->google_token);
 		if($client)
@@ -289,6 +289,19 @@ class GmailController extends Controller
 		} else{
 			return redirect('/gmail/auth');
 		}
+	}
+
+	public function updateToken(Request $request) {
+		try{
+			$user = User::find(1);
+			$user->timestamps = false;
+			$user->google_token = $request->all();
+			$user->save();
+			return 1;
+		}catch(\Exception $e) {
+			return 0;
+		}
+		
 	}
 
 	public function singleThreadJs(Request $request, $threadId) {
@@ -305,4 +318,192 @@ class GmailController extends Controller
 			return redirect('/gmail/auth');
 		}
 	}
+	
+	public function decodeBody($body) {
+		$rawData = $body;
+		$sanitizedData = strtr($rawData,'-_', '+/');
+		$decodedMessage = base64_decode($sanitizedData);
+		if(!$decodedMessage){
+			$decodedMessage = FALSE;
+		}
+		return $decodedMessage;
+	}
+
+	public function singleThreadphp(Request $request, $threadId) {
+		$user = User::find(1);
+		$client = $this->isValidToken($user->google_token);
+		$service = new \Google_Service_Gmail($client);
+		// Print the labels in the user's account.
+		$users = 'me';
+
+		$thread = $service->users_threads->get($users, $threadId);
+		$messages = $thread->messages;
+		$time_start = microtime(true);
+		$BODY = "";
+		$attachments = [];
+		foreach($messages as $message) {
+			$full = $message;
+			$headers = $full->payload->headers;
+							$parts = $full->getPayload()->getParts();
+							$lookingfor = ['Delivered-To','To','Subject','Reply-To','Received'];
+							foreach($headers as $eachel)
+							{
+								if(in_array($eachel['name'],$lookingfor))
+								{
+									$printH[$eachel['name']]=$eachel['value'];
+								}
+							}
+
+							$payload = $full->getPayload();
+							$parts = $payload->getParts();
+
+							// With no attachment, the payload might be directly in the body, encoded.
+							$body = $payload->getBody();
+							$BODY = FALSE;
+							// If we didn't find a body, let's look for the parts
+							if(!$BODY) {
+								
+								foreach ($parts  as $part) {
+									if($part['parts'] && !$BODY) {
+										foreach ($part['parts'] as $p) {
+											if($p['parts'] && count($p['parts']) > 0){
+												foreach ($p['parts'] as $y) {
+													if(($y['mimeType'] === 'text/html') && $y['body']) {
+														$BODY = $this->decodeBody($y['body']->data);
+														break;
+													}
+												}
+											} else if(($p['mimeType'] === 'text/html') && $p['body']) {
+												$BODY = $this->decodeBody($p['body']->data);
+												break;
+											}
+										}
+									}
+									if($BODY) {
+										break;
+									}
+								}
+							
+							}
+							// let's save all the images linked to the mail's body:
+							if($BODY && count($parts) > 1){
+								$images_linked = array();
+								foreach ($parts  as $part) {
+									if($part['filename']){
+										array_push($images_linked, $part);
+									} else{
+										if($part['parts']) {
+											foreach ($part['parts'] as $p) {
+												if($p['parts'] && count($p['parts']) > 0){
+													foreach ($p['parts'] as $y) {
+														if(($y['mimeType'] === 'text/html') && $y['body']) {
+															array_push($images_linked, $y);
+														}
+													}
+												} else if(($p['mimeType'] !== 'text/html') && $p['body']) {
+													array_push($images_linked, $p);
+												}
+											}
+										}
+									}
+									if (!empty($part->body->attachmentId)) {
+										$folderPath = "attachments/".$message->id;
+										if(!File::exists(public_path($folderPath))) {
+											File::makeDirectory(public_path($folderPath), 0777, true, true);
+										}
+										$attachment = $service->users_messages_attachments->get('me', $message->id, $part->body->attachmentId);
+										$attachments[$message->id][] =  [
+											'filename' => $part->filename,
+											'mimeType' => $part->mimeType,
+											'data'     => strtr($attachment->data, '-_', '+/'),
+											'attachment_id' => $part->body->attachmentId,
+											'file_path' => $folderPath
+										];
+										$save_file_path = public_path($folderPath."/".$part->filename);
+										$image_file     = base64_decode(strtr($attachment->data, '-_', '+/'));  
+										file_put_contents($save_file_path, $image_file);
+										$attachmentHtml = "";
+										$attachmentHtml .= "<table>";
+									}
+								}
+								// special case for the wdcid...
+								preg_match_all('/wdcid(.*)"/Uims', $BODY, $wdmatches);
+								if(count($wdmatches)) {
+									$z = 0;
+									foreach($wdmatches[0] as $match) {
+										$z++;
+										if($z > 9){
+											$BODY = str_replace($match, 'image0' . $z . '@', $BODY);
+										} else {
+											$BODY = str_replace($match, 'image00' . $z . '@', $BODY);
+										}
+									}
+								}
+								preg_match_all('/src="cid:(.*)"/Uims', $BODY, $matches);
+								if(count($matches)) {
+									$search = array();
+									$replace = array();
+									// let's trasnform the CIDs as base64 attachements 
+									foreach($matches[1] as $match) {
+										foreach($images_linked as $img_linked) {
+											foreach($img_linked['headers'] as $img_lnk) {
+												if( $img_lnk['name'] === 'Content-ID' || $img_lnk['name'] === 'Content-Id' || $img_lnk['name'] === 'X-Attachment-Id'){
+													if ($match === str_replace('>', '', str_replace('<', '', $img_lnk->value)) 
+															|| explode("@", $match)[0] === explode(".", $img_linked->filename)[0]
+															|| explode("@", $match)[0] === $img_linked->filename){
+														$search = "src=\"cid:$match\"";
+														$mimetype = $img_linked->mimeType;
+														$attachment = $service->users_messages_attachments->get('me', $message->getId(), $img_linked['body']->attachmentId);
+														$data64 = strtr($attachment->getData(), array('-' => '+', '_' => '/'));
+														$replace = "src=\"data:" . $mimetype . ";base64," . $data64 . "\"";
+														$BODY = str_replace($search, $replace, $BODY);
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+							// If we didn't find the body in the last parts, 
+							// let's loop for the first parts (text-html only)
+							if(!$BODY) {
+								foreach ($parts  as $part) {
+									if($part['body'] && $part['mimeType'] === 'text/html') {
+										$BODY = $this->decodeBody($part['body']->data);
+										break;
+									}
+								}
+							}
+							// With no attachment, the payload might be directly in the body, encoded.
+							if(!$BODY) {
+								$BODY = $this->decodeBody($body['data']);
+							}
+							// Last try: if we didn't find the body in the last parts, 
+							// let's loop for the first parts (text-plain only)
+							if(!$BODY) {
+								foreach ($parts  as $part) {
+									if($part['body']) {
+										$BODY = $this->decodeBody($part['body']->data);
+										break;
+									}
+								}
+							}
+							if(!$BODY) {
+								$BODY = '(No message)';
+							}
+
+		}
+		
+		$accessToken = "";
+		$client = $this->isValidToken($user->google_token);
+		if($client)
+		{
+			$subject = $request->subject;
+			$accessToken = json_decode($user->google_token, TRUE)['access_token'];
+			return view('inbox_readonly_single_attachment', compact("accessToken", "threadId", "subject", "BODY", "attachments"));
+		} else{
+			return redirect('/gmail/auth');
+		}
+	}
+
 }
