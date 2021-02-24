@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
@@ -158,6 +157,18 @@ class GmailController extends Controller
 		}
 	}
 
+	public function createMessage(Request $request) {
+		$user = User::find(1);
+
+		$client = $this->isValidToken($user->google_token);
+		if($client)
+		{
+			return view("create-message");
+		} else {
+			return redirect('/gmail/auth');
+		}
+	}
+
 	public function sendEmail(Request $request) {
 		$user = User::find(1);
 		$client = $this->isValidToken($user->google_token);
@@ -169,8 +180,61 @@ class GmailController extends Controller
 				$user = 'me';
 				$message = new \Swift_Message();
 				$message->setFrom("muthusharp1st@gmail.com");
+				$message->setTo([$request->to]);
+				$message->setContentType("text/html");
+				$message->setBody($request->body);
+				$message->setSubject($request->subject);
+				$message->toString();
+				    
+
+				if( $request->file('attachment')) {
+					if(is_array($request->file('attachment'))) {
+						foreach($request->file('attachment') as $attachment) {
+							$path = $attachment->getPathName();
+							$fileName = $attachment->getClientOriginalName();  
+							$message->attach(
+							\Swift_Attachment::fromPath($path)->setFilename($fileName)
+							);
+						}
+					} else {
+						$path = $request->file('attachment')->getPathName();
+						$fileName = $request->file('attachment')->getClientOriginalName();  
+						$message->attach(
+							\Swift_Attachment::fromPath($path)->setFilename($fileName)
+							);
+					}
+				} 
+				// The message needs to be encoded in Base64URL
+				$mime = rtrim(strtr(base64_encode($message), '+/', '-_'), '=');
+				$msg = new \Google_Service_Gmail_Message();
+				$msg->setRaw($mime);
+		
+				$service->users_messages->send("me", $msg);
+				return redirect()->back()->withSuccess("Mail sent!");
+			} catch (Exception $e) {
+				echo $e->getMessage();
+			}
+			
+		}else
+		{
+			return redirect('/gmail/auth');
+		}
+	}
+
+	public function replyEmail(Request $request) {
+		$user = User::find(1);
+		$client = $this->isValidToken($user->google_token);
+		if($client)
+		{
+			try {
+				$service = new \Google_Service_Gmail($client);
+			
+				$user = 'me';
+				$message = new \Swift_Message();
+				$message->setFrom("muthusharp1st@gmail.com");
 				$message->setTo(['marimuthu.m@dsignzmedia.in'=>'Marimuthu']);
-				$message->setBody('Here is my body');
+				$message->setContentType("text/html");
+				$message->setBody($request->body);
 				$message->setSubject('Here is my subject');
 				$message->toString();
 			

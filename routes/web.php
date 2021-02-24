@@ -29,6 +29,10 @@ Route::get('/readonly-inbox/{thredId}/php','App\Http\Controllers\GmailController
 
 Route::post('/update-token','App\Http\Controllers\GmailController@updateToken')->name("updateusertoken");
 
+Route::post("replymessage", 'App\Http\Controllers\GmailController@replyEmail')->name("replymessage");
+
+Route::get("create/message", 'App\Http\Controllers\GmailController@createMessage')->name("createmessage");
+Route::post("sendmessage", 'App\Http\Controllers\GmailController@sendEmail')->name("senddMessage");
 
 
 Auth::routes();
