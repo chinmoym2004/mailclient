@@ -176,11 +176,13 @@ class GmailController extends Controller
 		{
 			try {
 				$service = new \Google_Service_Gmail($client);
-			
+				$to = explode(",", $request->to);
+				$cleanedMails = array_map('trim', $to);
+
 				$user = 'me';
 				$message = new \Swift_Message();
 				$message->setFrom("muthusharp1st@gmail.com");
-				$message->setTo([$request->to]);
+				$message->setTo($cleanedMails);
 				$message->setContentType("text/html");
 				$message->setBody($request->body);
 				$message->setSubject($request->subject);
@@ -348,8 +350,13 @@ class GmailController extends Controller
 		$client = $this->isValidToken($user->google_token);
 		if($client)
 		{
+			$service = new \Google_Service_Gmail($client);
+			// Print the labels in the user's account.
+			$users = 'me';
+			$labels = $service->users_labels->listUsersLabels($users);
+
 			$accessToken = json_decode($user->google_token, TRUE)['access_token'];
-			return view('inbox_readonly', compact("accessToken"));
+			return view('inbox_readonly', compact("accessToken", "labels"));
 		} else{
 			return redirect('/gmail/auth');
 		}

@@ -15,6 +15,9 @@
         display: flex;
       }
       .d-none { display: none; }
+      .left-label.active {
+        background: #337ab7; color: #fff; padding: 3px 10px;
+      }
     </style>
   </head>
   <body>
@@ -22,23 +25,53 @@
       <h1>Gmail Thread API demo</h1>
       <input type="hidden" name="accessToken" id="accessToken" value="{{ $accessToken }}">
       <button id="authorize-button" class="btn btn-primary hidden">Authorize</button>
-
-      <table class="table table-striped table-inbox hidden">
-        <thead>
-          <tr>
-            <th>From</th>
-            <th>Subject</th>
-            <th>Date/Time</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-        <tfoot>
-         
-        </tfoot>
-      </table>
-      <a href="javascript:;" class="d-none" id="next_page">Next</a>
+      <div class="row">
+	      <div class="col-12">
+          <a class="btn btn-primary pull-right" href="{{ route('createmessage') }}">Compose</a>
+		      <div class="row">
+            <div class="col-sm-3">
+                <h5>
+                  Labels
+                  @if(!empty(app('request')->input('label')))
+                    <a href="{{ route('threadsjs') }}" style="color: red">- Reset</a>
+                  @endif
+                </h5>
+                <table>
+                  @foreach ($labels->getLabels() as $label)
+                  @php
+                    $labelId = $label->getId();
+                  @endphp
+                  <tr>
+                    <td>
+                      <a href="{{ route('threadsjs', [ 'label' => $labelId]) }}" class="left-label {{ app('request')->input('label') == $labelId ? 'active' : '' }}">{{$label->getName()}}</a>
+                    </td>
+                  </tr>
+                  @endforeach
+                </table>
+            </div>
+			      <div class="col-sm-9">
+            <a href="javascript:;" class="d-none" id="next_page" style="font-size: 20px; font-weight: bold; margin-bottom: 30px; display: inline-block; float: right; ">Next</a>
+              <table class="table table-striped table-inbox hidden">
+                <thead>
+                  <tr>
+                    <th>From</th>
+                    <th>Subject</th>
+                    <th>Date/Time</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot>
+                
+                </tfoot>
+              </table>
+              <a href="javascript:;" class="d-none" id="next_page" style="font-size: 20px; font-weight: bold; margin-bottom: 30px; display: inline-block; float: right; ">Next</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      
     </div>
-
+    <input type="hidden" name="hidden_label" id="hidden_label" value="{{ !empty(app('request')->input('label')) ? app('request')->input('label') : 'INBOX' }}"> 
     <script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
     <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
 
@@ -120,7 +153,7 @@
           // Each single thread (included multile message)
           var optParams = {
             'userId': 'me',
-            'labelIds': 'INBOX',
+            'labelIds': $("#hidden_label").val(),
             'maxResults': 20
           };
           if(nextPageToken != null && nextPageToken != "null" && nextPageToken != undefined) {
@@ -182,7 +215,7 @@
               '<tr>\
                 <td>'+getHeader(firstMessage.payload.headers, 'From')+'</td>\
                 <td>\
-                <a href="/readonly-inbox/' + thread.id +'?subject='+subject+'">' +
+                <a href="/readonly-inbox/' + thread.id +'?subject='+subject+'&label='+$("#hidden_label").val()+'">' +
                     subject+'  (#'+thread.messages.length+')'+'</a>\
                 </td>\
                 <td>'+getHeader(lastMessage.payload.headers, 'Date')+'</td>\

@@ -33,6 +33,12 @@
   <body>
     <div class="container">
       <h1>COMPOSER MAIL</h1>
+      <div class="row">
+        <div class="col-12">
+          <a class="btn btn-primary pull-right" href="{{ route('threadsjs') }}">Back to INBOX</a>
+        </div>
+      </div>
+      
         @if (session()->has('success'))
         <div class="alert alert-success">
                 {{ session('success') }}
@@ -41,7 +47,7 @@
         <form method="POST" enctype='multipart/form-data' action="{{ route('senddMessage') }}">
           {{ csrf_field() }}
                 <div class="form-group">
-                    <label for="">To</label>
+                    <label for="">To (To send bulk email use comma separated. e.g. xxx@xx.com,yyy@yy.com - max: 20)</label>
                     <input type="text" name="to" id="to" class="form-control" value="" >
                 </div>
                 <div class="form-group">
