@@ -8,6 +8,7 @@ use Google_Client;
 use Google_Service_Gmail;
 use App\Models\User;
 use File;
+use App\Models\EmailTracker;
 
 class GmailController extends Controller
 {
@@ -46,7 +47,7 @@ class GmailController extends Controller
 	    return redirect($authUrl);
 	}
 
-	public function callback(Request $request)
+	public function callback2(Request $request)
 	{
 		
 		if($request->code)
@@ -75,6 +76,49 @@ class GmailController extends Controller
 		else
 		{
 			return redirect('/gmail/auth');
+		}	
+	}
+
+	// This call back is modified one to match with the request genrated in Homecontroller. 
+	public function callback(Request $request)
+	{
+		
+		if($request->code)
+		{
+			//TODO : check if the email same as request one 
+
+			$user = EmailTracker::where('email',$request->session()->get('email'))->first();
+
+			$authCode = $request->code;
+			$client = $this->getClient();
+			
+			try
+			{
+
+				// Exchange authorization code for an access token.
+				$accessToken = $client->fetchAccessTokenWithAuthCode($authCode);
+				// Check to see if there was an error.
+				
+				if (array_key_exists('error', $accessToken)) {
+					throw new Exception(join(', ', $accessToken));
+				}
+	
+				$user->provider_token = $accessToken['access_token'];
+				$user->enable_tracking = 1;
+				$user->provider_refresh_token = $accessToken['refresh_token'];
+				$user->expires_at = $accessToken['expires_in'];
+				$user->save();
+	
+				return redirect('/')->with('alert-success','Authenticated successfully');
+			}
+			catch(\Exception $e)
+			{
+				return redirect('/')->with('alert-error','Failed to authenticate. Try again');
+			}
+		}
+		else
+		{
+			return redirect('/')->with('alert-error','Failed to authenticate');
 		}	
 	}
 
