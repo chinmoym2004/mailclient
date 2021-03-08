@@ -79,6 +79,24 @@ class GmailController extends Controller
 		}	
 	}
 
+	public function refreshToken($user)
+	{
+		$client = $this->getClient();
+		$accessToken = $client->refreshToken($user->provider_refresh_token);
+		if (array_key_exists('error', $accessToken)) {
+			//throw new Exception(join(', ', $accessToken));
+			return false;
+		}
+
+		$user->provider_token = $accessToken['access_token'];
+		$user->enable_tracking = 1;
+		$user->provider_refresh_token = $accessToken['refresh_token'];
+		$user->expires_at = $accessToken['expires_in'];
+		$user->save();
+
+		return $accessToken;
+	}
+
 	// This call back is modified one to match with the request genrated in Homecontroller. 
 	public function callback(Request $request)
 	{
@@ -130,7 +148,6 @@ class GmailController extends Controller
 		{
 			$client = $this->getClient();
 			$token = json_decode($user_token,true);
-			//print_r($token);exit;
 			$accessToken = $client->fetchAccessTokenWithAuthCode($token['access_token']);
             $client->setAccessToken($token);
             if ($client->isAccessTokenExpired()) 
