@@ -17,9 +17,10 @@ class CreateAttachmentTable extends Migration
             $table->id();
             $table->string('message_id');
             $table->string('attachment_id')->nullable();
-            $table->string('filepath')->nullable();
-            $table->string('file_type')->nullable();
-            $table->string('file_size')->nullable();
+            $table->string('filename')->nullable();
+            $table->string('mimeType')->nullable();
+            $table->string('data')->nullable();
+            $table->string('file_path')->nullable();
             $table->string('record_time')->nullable();
             $table->timestamps();
         });

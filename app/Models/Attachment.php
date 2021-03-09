@@ -8,4 +8,15 @@ use Illuminate\Database\Eloquent\Model;
 class Attachment extends Model
 {
     use HasFactory;
+
+    protected $fillable=[
+        'message_id',
+        'attachment_id',
+        'filename',
+        'mimeType',
+        'data',
+        'file_path',
+        'record_time'
+    ];
+    
 }

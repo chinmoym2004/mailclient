@@ -17,7 +17,7 @@ class CreateMessagessTable extends Migration
             $table->id();
             $table->string('thread_id');
             $table->string('message_id');
-            $table->text('body')->nullable();
+            $table->longText('body')->nullable();
             $table->string('from')->nullable();
             $table->text('to')->nullable();
             $table->text('cc')->nullable();

@@ -94,7 +94,8 @@ class GmailController extends Controller
 		$user->expires_at = $accessToken['expires_in'];
 		$user->save();
 
-		return $accessToken;
+		$client->setAccessToken($accessToken);
+		return $client;
 	}
 
 	// This call back is modified one to match with the request genrated in Homecontroller. 
