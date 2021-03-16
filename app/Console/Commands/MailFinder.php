@@ -6,7 +6,10 @@ use Illuminate\Console\Command;
 use App\Http\Controllers\GmailController;
 use App\Models\EmailTracker;
 use App\Models\Thread as DBThread;
+use App\Models\Attachment;
+
 use File;
+use Str;
 class MailFinder extends Command
 {
     /**
@@ -63,28 +66,35 @@ class MailFinder extends Command
 			//dd($mails);exit;
 
 			$optParams = [];
-        	$optParams['maxResults'] = 20; // Return Only 20 Messages
+        	$optParams['maxResults'] = 50; // Return Only 20 Messages
 
-        	if(!empty($request->label)) {
+        	// if(!empty($request->label)) {
 
-        		$optParams['labelIds'] = $request->label; // Show messages based on the lave
-        	} else {
-				$optParams['labelIds'] = "INBOX";
-			}
+        	// 	$optParams['labelIds'] = $request->label; // Show messages based on the lave
+        	// } else {
+			// 	$optParams['labelIds'] = "All Mail";
+			// }
 
 
         	// if(!empty($request->pageToken)) {
         	// 	$optParams['pageToken'] = $request->pageToken; // Page Token
-        	// }
+            // }
             
-            if($email->last_pulled)
-            {
-                $optParams['after']=$email->last_pulled;
-            }
+           //dd($service->users_history->listUsersHistory($user,['startHistoryId'=>'2258']));
+            
+            $last_pull = date('Y-m-d');
+            
+            // if($email->last_pulled)
+            // {
+            //     $optParams['q']='after: '.date('Y-m-d',strtotime($email->last_pulled.'-1 day'));// Rad all the threads for today
+            // }
+            // else
+            // {
+            //     // By default pull data from today
+            //     $optParams['q']='after: '.date('Y-m-d',strtotime($last_pull.'-1 day'));// Rad all the threads for today
+            // }
 
             $threads = $service->users_threads->listUsersThreads($user, $optParams);
-            $record_last_pulltime = time();
-
             // Do the processing on the data 
             foreach($threads as $thread)
             {
@@ -97,10 +107,13 @@ class MailFinder extends Command
 
                 // }
                 $threadRequest = $service->users_threads->get($user, $thread->id);
+                //dd($threadRequest);
                 $firstmessage = $threadRequest->messages[0];
                 $subject = $this->getHeader($firstmessage->payload->headers, 'Subject');
+                $tmp = $this->getHeader($firstmessage->payload->headers, 'Date');
                 $data['thread_id']=$thread->id;
                 $data['subject'] = $subject;
+                $data['record_time'] = $tmp;
 
                 $dbthread = $email->threads()->where('thread_id',$thread->id)->first();
                 if(!$dbthread)
@@ -109,7 +122,8 @@ class MailFinder extends Command
                 $return = $this->getBodyAndAttachment($service,$gc,$dbthread,$threadRequest->messages);
             }
 
-            $email->last_pulled = $record_last_pulltime;
+
+            $email->last_pulled = $last_pull;
             $email->save();
         }
     }
@@ -133,10 +147,8 @@ class MailFinder extends Command
     {
         foreach($messages as $message) {
             $attachments=[];
-			$full = $message;
-			$headers = $full->payload->headers;
-            $parts = $full->getPayload()->getParts();
-            $lookingfor = ['Delivered-To','To','Subject','Reply-To','Received'];
+            $headers = $message->payload->headers;
+            $lookingfor = ['From','To','Date'];
             foreach($headers as $eachel)
             {
                 if(in_array($eachel['name'],$lookingfor))
@@ -144,13 +156,13 @@ class MailFinder extends Command
                     $printH[$eachel['name']]=$eachel['value'];
                 }
             }
-
-            $payload = $full->getPayload();
+            $payload = $message->getPayload();
             $parts = $payload->getParts();
 
             // With no attachment, the payload might be directly in the body, encoded.
             $body = $payload->getBody();
             $BODY = FALSE;
+            //dd($parts);
             // If we didn't find a body, let's look for the parts
             if(!$BODY) {
                 
@@ -178,47 +190,53 @@ class MailFinder extends Command
             }
             // let's save all the images linked to the mail's body:
             if($BODY && count($parts) > 1){
-                $images_linked = array();
+                $linkedattachments = array();
                 foreach ($parts  as $part) {
                     if($part['filename']){
-                        array_push($images_linked, $part);
+                        array_push($linkedattachments, $part);
                     } else{
                         if($part['parts']) {
                             foreach ($part['parts'] as $p) {
                                 if($p['parts'] && count($p['parts']) > 0){
                                     foreach ($p['parts'] as $y) {
                                         if(($y['mimeType'] === 'text/html') && $y['body']) {
-                                            array_push($images_linked, $y);
+                                            array_push($linkedattachments, $y);
                                         }
                                     }
                                 } else if(($p['mimeType'] !== 'text/html') && $p['body']) {
-                                    array_push($images_linked, $p);
+                                    array_push($linkedattachments, $p);
                                 }
                             }
                         }
                     }
                     if (!empty($part->body->attachmentId)) {
-                        $folderPath = "attachments/".$message->id;
-                        if(!File::exists(public_path($folderPath))) {
-                            File::makeDirectory(public_path($folderPath), 0777, true, true);
-                        }
+                        $folderPath = $part->filename;
+                        $extension = pathinfo($part->filename)['extension'];
+                        $newfilename = Str::uuid().'.'.$extension;
+
+                        // if(!File::exists(public_path($folderPath))) {
+                        //     File::makeDirectory(public_path($folderPath), 0777, true, true);
+                        // }
                         $attachment = $service->users_messages_attachments->get('me', $message->id, $part->body->attachmentId);
-                        $attachments[$message->id][] =  [
-                            'message_id'=>$message->id,
-                            'filename' => $part->filename,
-                            'mimeType' => $part->mimeType,
-                            'data'     => strtr($attachment->data, '-_', '+/'),
-                            'attachment_id' => $part->body->attachmentId,
-                            'file_path' => $folderPath
-                        ];
-                        $save_file_path = public_path($folderPath."/".$part->filename);
-                        $image_file     = base64_decode(strtr($attachment->data, '-_', '+/'));  
-                        //file_put_contents($save_file_path, $image_file);
-                        \Storage::put($part->filename,$image_file);
-                        $attachmentHtml = "";
-                        $attachmentHtml .= "<table>";
+                        
+                        //Avoid creating same file multiple time if the atttachment alrady exist 
+                        if(!Attachment::where('attachment_id',$part->body->attachmentId)->count())
+                        {
+                            $attachments[] =  [
+                                'message_id'=>$message->id,
+                                'filename' => $part->filename,
+                                'mimeType' => $part->mimeType,
+                                'data'     => strtr($attachment->data, '-_', '+/'),
+                                'attachment_id' => $part->body->attachmentId,
+                                'file_path' => $newfilename
+                            ];
+                            $image_file     = base64_decode(strtr($attachment->data, '-_', '+/'));  
+                            //file_put_contents($save_file_path, $image_file);
+                            \Storage::put($newfilename,$image_file);
+                        }
                     }
                 }
+                //dd($attachments);
                 // special case for the wdcid...
                 preg_match_all('/wdcid(.*)"/Uims', $BODY, $wdmatches);
                 if(count($wdmatches)) {
@@ -238,7 +256,7 @@ class MailFinder extends Command
                     $replace = array();
                     // let's trasnform the CIDs as base64 attachements 
                     foreach($matches[1] as $match) {
-                        foreach($images_linked as $img_linked) {
+                        foreach($linkedattachments as $img_linked) {
                             foreach($img_linked['headers'] as $img_lnk) {
                                 if( $img_lnk['name'] === 'Content-ID' || $img_lnk['name'] === 'Content-Id' || $img_lnk['name'] === 'X-Attachment-Id'){
                                     if ($match === str_replace('>', '', str_replace('<', '', $img_lnk->value)) 
@@ -284,9 +302,11 @@ class MailFinder extends Command
             if(!$BODY) {
                 $BODY = '(No message)';
             }
-
-            $message = $dbthread->messages()->create(['body'=>$BODY,'message_id'=>$message->id]);
-            $message->attachments()->create([$attachments]);
+            if(!$dbthread->messages()->where('message_id',$message->id)->count())
+            {
+                $message = $dbthread->messages()->create(['body'=>$BODY,'message_id'=>$message->id,'from'=>$printH['From'],'to'=>$printH['To'],'record_time'=>$printH['Date']]);
+                $message->attachments()->insert($attachments);
+            }
 
         }
         

@@ -34,6 +34,9 @@ Route::get("create/message", 'App\Http\Controllers\GmailController@createMessage
 Route::post("sendmessage", 'App\Http\Controllers\GmailController@sendEmail')->name("senddMessage");
 
 
+Route::resource('/custom-mail','App\Http\Controllers\MailController');
+
+
 Auth::routes();
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
