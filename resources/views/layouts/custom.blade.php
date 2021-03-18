@@ -3,8 +3,19 @@
 <head>
 	<title>Inbox</title>
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BmbxuPwQa2lc/FVzBcNJ7UAyJxM6wuqIj61tLrc4wSX0szH/Ev+nYRRuWlolflfl" crossorigin="anonymous">
-	<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/js/bootstrap.bundle.min.js" integrity="sha384-b5kHyXgcpbZJO/tY9Ul7kGkf1S0CWuKcCD38l8YkeH8z8QjE0GmW1gYU5S9FOnJ0" crossorigin="anonymous"></script>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.4.0/css/font-awesome.min.css">
+	<link rel="stylesheet" href="{{ url('js/froala_editor/css/froala_editor.css') }}">
+	<link rel="stylesheet" href="{{ url('js/froala_editor/css/froala_style.css') }}">
+	<link rel="stylesheet" href="{{ url('js/froala_editor/css/plugins/code_view.css') }}">
+	<link rel="stylesheet" href="{{ url('js/froala_editor/css/plugins/colors.css') }}">
+	<link rel="stylesheet" href="{{ url('js/froala_editor/css/plugins/emoticons.css') }}">
+	<link rel="stylesheet" href="{{ url('js/froala_editor/css/plugins/line_breaker.css') }}">
+	<link rel="stylesheet" href="{{ url('js/froala_editor/css/plugins/table.css') }}">
+	<link rel="stylesheet" href="{{ url('js/froala_editor/css/plugins/char_counter.css') }}">
+	<link rel="stylesheet" href="{{ url('js/froala_editor/css/plugins/fullscreen.css') }}">
+	<link rel="stylesheet" href="{{ url('js/froala_editor/css/plugins/file.css') }}">
+	<link rel="stylesheet" href="{{ url('js/froala_editor/css/plugins/quick_insert.cs') }}s">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.3.0/codemirror.min.css">	
 </head>
 <body>
 	<style type="text/css">
@@ -15,12 +26,90 @@
 		<p class="h5 my-0 me-md-auto fw-normal">Mail Centre</p>
 		<nav class="my-2 my-md-0 me-md-3">
 			<a class="p-2 text-dark" href="{{url('custom-mail')}}">All Mail</a>
-			<a class="p-2 text-dark" href="{{url('/')}}">Add New Email</a>
+			<a class="p-2 text-dark ajax" href="{{url('compose-mail')}}">Compose Mail</a>
+			<a class="p-2 text-dark" href="{{url('/')}}">Add Tracking</a>
 		</nav>
 	</header>
 	
     @yield('content')
 
+	<div class="modal fade" id="commonmodal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+	</div>
+
+	<script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
+	<script src="http://malsup.github.io/jquery.form.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/js/bootstrap.bundle.min.js" integrity="sha384-b5kHyXgcpbZJO/tY9Ul7kGkf1S0CWuKcCD38l8YkeH8z8QjE0GmW1gYU5S9FOnJ0" crossorigin="anonymous"></script>
+    <script type="text/javascript"
+    src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.3.0/codemirror.min.js"></script>
+	<script type="text/javascript"
+		src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.3.0/mode/xml/xml.min.js"></script>
+
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/froala_editor.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/align.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/char_counter.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/code_beautifier.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/code_view.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/colors.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/draggable.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/emoticons.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/entities.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/file.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/font_size.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/font_family.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/fullscreen.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/line_breaker.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/inline_style.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/link.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/lists.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/paragraph_format.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/paragraph_style.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/quick_insert.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/quote.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/table.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/save.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url('js/froala_editor/js/plugins/url.min.js') }}"></script>	
+	
+	<script>
+		$(document).on("click",".ajax",function(event){
+			event.preventDefault();
+			$.get($(this).attr('href'),function(){
+
+			}).done(function(res){
+				$("#commonmodal").html(res.html);
+				$("#commonmodal").modal("show");
+
+			}).fail(function(){
+
+			});
+		});
+
+		$(document).on("submit",".ajaxFormSubmit",function(event){
+			event.preventDefault();
+			var form = $(this);
+			$(this).ajaxSubmit({
+				success: function(res) {
+					form.trigger("reset");
+					$("#commonmodal").modal("hide");
+
+					if (res.reload != undefined)
+						window.location.reload();
+
+					if (res.redirect_to != undefined)
+						window.location.href = res.redirect_to;
+
+				},
+				error: function(res) {
+					alert("ERROR : check consle"+ res.responseJSON.errors);
+				}
+			});
+		});
+	</script>
 	@yield('scripts')
+
+	
+	<script>
+	
+	
+	</script>
 </body>
 </html>
