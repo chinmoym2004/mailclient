@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Message;
+use App\Models\EmailTracker;
 
 class Thread extends Model
 {
@@ -20,5 +21,10 @@ class Thread extends Model
     public function messages()
     {
         return $this->hasMany(Message::class,'thread_id','thread_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(EmailTracker::class,'email_tracker_id','id');
     }
 }

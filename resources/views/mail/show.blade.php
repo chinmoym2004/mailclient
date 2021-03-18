@@ -11,7 +11,9 @@
     </div>
     <div class="my-3 p-3 bg-body rounded shadow-sm">
         <h4 class="border-bottom pb-2 mb-0">{{$thread->subject}}</h4>
+        @php $lastmessage = null; @endphp;
         @foreach($thread->messages as $message)
+        @php $lastmessage = $message; @endphp;
         <div class="card mb-1">
             <div class="card-header">
                 @if($message->attachments()->count())
@@ -57,7 +59,32 @@
             </div>
         </div>
         @endforeach 
+        <div class="card-footer">
+            <a href="#" class="card-link">Reply</a>
+            <div class="card">
+                <form method="POST" enctype='multipart/form-data' action="{{ route('reply') }}" class="ajaxFormSubmit">
+                    <input type="hidden" name="message_id" value="{{$lastmessage->id}}"/>
+                    {{ csrf_field() }}
+                   
+                    <div class="form-group">
+                        <label for="">Reply To</label>
+                        <input type="text" name="to" id="to" class="form-control" value="{{$lastmessage->from}}" disabled>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="">Body</label>
+                        <textarea class="form-control" name="body" id="body_message" placeholder="Reply" rows="10"></textarea>
+                    </div>
         
+                    <div class="form-group">
+                        <label for="">Attachment</label>
+                        <input type="file" name="attachment[]" multiple id="attachment" class="form-control" value="" >
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Reply</button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 
