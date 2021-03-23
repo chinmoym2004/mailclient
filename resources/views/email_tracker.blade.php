@@ -6,8 +6,19 @@
 <div class="row">
     <form method="POST" action="{{url('/add-to-tracking')}}">
         @csrf
-        <div class="mb-3">
-            <input type="email" name="email" class="form-control" placeholder="Email address">
+        <div class="row mb-3">
+          <div class="col-6">
+            <label>Platform</label>
+            <select name="platform" class="form-control" required>
+                <option value>-- Select a platform --</option>
+                <option value="msmail">Microsoft Mail</option>
+                <option value="gmail">Gmail</option>
+            </select>
+          </div>
+          <div class="col-6">
+              <label>Enter Email</label>
+              <input type="email" name="email" class="form-control" placeholder="Email address" required>
+          </div>
         </div>
         <button type="submit" class="btn btn-primary">Add Email</button>
     </form>
@@ -34,7 +45,7 @@
                 <a href="{{url('/disconnect?email='.$entry->email)}}" class="btn btn-danger">Disconnect</a>
                 (Expired at : {{$entry->expires_at}})
                 @else 
-                <a  href="{{url('/authenticate?email='.$entry->email)}}" class="btn btn-danger">Authenticate Gmail</a>
+                <a  href="{{url('/'.($entry->platform=='gmail'?'authenticate':'ms-authenticate').'?email='.$entry->email)}}" class="btn btn-danger">Authenticate Gmail</a>
                 @endif
             </td>
         </tr>

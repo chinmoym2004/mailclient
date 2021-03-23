@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/','App\Http\Controllers\HomeController@index');
 Route::post('/add-to-tracking','App\Http\Controllers\HomeController@AddToTracking');
 Route::get('/authenticate','App\Http\Controllers\HomeController@getToken');
+Route::get('/ms-authenticate','App\Http\Controllers\HomeController@getMSToken');
+
 
 Route::get('/gmail/auth','App\Http\Controllers\GmailController@authorization');
 Route::get('/mail','App\Http\Controllers\GmailController@callback');

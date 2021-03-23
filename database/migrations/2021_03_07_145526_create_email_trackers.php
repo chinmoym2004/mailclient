@@ -17,9 +17,9 @@ class CreateEmailTrackers extends Migration
             $table->id();
             $table->string('email');
             $table->string('platform')->nullable();
-            $table->string('provider_token')->nullable();
+            $table->text('provider_token')->nullable();
             $table->string('expires_at')->nullable();
-            $table->string('provider_refresh_token')->nullable();
+            $table->text('provider_refresh_token')->nullable();
             $table->boolean('enable_tracking')->default(0);
             $table->string('last_pulled')->nullable();
             $table->timestamps();

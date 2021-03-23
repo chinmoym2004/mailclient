@@ -38,7 +38,7 @@ class HomeController extends Controller
             {
                 $newemail = new EmailTracker;
                 $newemail->email = $request->email;
-                $newemail->platform = 'gmail';
+                $newemail->platform = $request->platform ?? 'gmail';
                 $newemail->save();
             }
         }
@@ -55,6 +55,42 @@ class HomeController extends Controller
             $client = $gc->getClient();
             $authUrl = $client->createAuthUrl();
             return redirect($authUrl);
+        }
+    }
+
+    public function getMSToken(Request $request)
+    {
+        $token = null;
+        $req_mail = EmailTracker::where('email',$request->email)->first();
+        if($request->email)
+        {
+            try
+            {
+                $guzzle = new \GuzzleHttp\Client();
+                $tenantId = env('MS_TANENT_ID');
+                $url = 'https://login.microsoftonline.com/' . $tenantId . '/oauth2/token?api-version=1.0';
+                $token = json_decode($guzzle->post($url, [
+                    'form_params' => [
+                        'client_id' => env('MS_CLIENT_ID'),
+                        'client_secret' => env('MS_CLIENT_SECRET'),
+                        'resource' => 'https://graph.microsoft.com/',
+                        'grant_type' => 'client_credentials',
+                    ],
+                ])->getBody()->getContents());
+            }
+            catch(\Exeption $e)
+            {
+                report($e);
+                return back();
+            }
+
+            $req_mail->enable_tracking = 1;
+            $req_mail->provider_refresh_token = '';
+            $req_mail->expires_at = $token->expires_in;
+            $req_mail->provider_token = $token->access_token;
+            $req_mail->save();
+
+            return back();
         }
     }
 }
