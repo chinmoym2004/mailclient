@@ -11,9 +11,9 @@
     </div>
     <div class="my-3 p-3 bg-body rounded shadow-sm">
         <h4 class="border-bottom pb-2 mb-0">{{$thread->subject}}</h4>
-        @php $lastmessage = null; @endphp;
+        @php $lastmessage = null; @endphp
         @foreach($thread->messages as $message)
-        @php $lastmessage = $message; @endphp;
+        @php $lastmessage = $message; @endphp
         <div class="card mb-1">
             <div class="card-header">
                 @if($message->attachments()->count())

@@ -44,7 +44,7 @@ class MailFinder extends Command
     public function handle()
     {
         $gc = new GmailController;
-        $emails = EmailTracker::where('enable_tracking',1)->get();
+        $emails = EmailTracker::where('enable_tracking',1)->where('platform','gmail')->get();
         foreach($emails as $email)
         {
             $existingtoken = json_encode(['access_token'=>$email->provider_token,'expires_in'=>$email->expires_at,'refresh_token'=>$email->provider_refresh_token]);

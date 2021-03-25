@@ -41,7 +41,8 @@ Route::get("compose-mail", 'App\Http\Controllers\MailController@createMessage')-
 Route::post("send", 'App\Http\Controllers\MailController@sendEmail')->name("send");
 Route::post("reply", 'App\Http\Controllers\MailController@replyEmail')->name("reply");
 
-
+Route::get("/mi-me", 'App\Http\Controllers\MsmailController@me');
+Route::any('/ms-callback','App\Http\Controllers\MsmailController@callback');
 
 Auth::routes();
 

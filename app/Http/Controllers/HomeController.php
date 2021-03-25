@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\EmailTracker;
 use App\Http\Controllers\GmailController;
+use Session;
 
 class HomeController extends Controller
 {
@@ -60,37 +61,57 @@ class HomeController extends Controller
 
     public function getMSToken(Request $request)
     {
-        $token = null;
-        $req_mail = EmailTracker::where('email',$request->email)->first();
-        if($request->email)
-        {
-            try
-            {
-                $guzzle = new \GuzzleHttp\Client();
-                $tenantId = env('MS_TANENT_ID');
-                $url = 'https://login.microsoftonline.com/' . $tenantId . '/oauth2/token?api-version=1.0';
-                $token = json_decode($guzzle->post($url, [
-                    'form_params' => [
-                        'client_id' => env('MS_CLIENT_ID'),
-                        'client_secret' => env('MS_CLIENT_SECRET'),
-                        'resource' => 'https://graph.microsoft.com/',
-                        'grant_type' => 'client_credentials',
-                    ],
-                ])->getBody()->getContents());
-            }
-            catch(\Exeption $e)
-            {
-                report($e);
-                return back();
-            }
+        // Process 1---
+        // $token = null;
+        // $req_mail = EmailTracker::where('email',$request->email)->first();
+        // if($request->email)
+        // {
+        //     try
+        //     {
+        //         $guzzle = new \GuzzleHttp\Client();
+        //         $tenantId = env('MS_TANENT_ID');
+        //         $url = 'https://login.microsoftonline.com/' . $tenantId . '/oauth2/token?api-version=1.0';
+        //         $token = json_decode($guzzle->post($url, [
+        //             'form_params' => [
+        //                 'client_id' => env('MS_CLIENT_ID'),
+        //                 'client_secret' => env('MS_CLIENT_SECRET'),
+        //                 'resource' => 'https://graph.microsoft.com/',
+        //                 'grant_type' => 'client_credentials',
+        //             ],
+        //         ])->getBody()->getContents());
+        //     }
+        //     catch(\Exeption $e)
+        //     {
+        //         report($e);
+        //         return back();
+        //     }
 
-            $req_mail->enable_tracking = 1;
-            $req_mail->provider_refresh_token = '';
-            $req_mail->expires_at = $token->expires_in;
-            $req_mail->provider_token = $token->access_token;
-            $req_mail->save();
+        //     $req_mail->enable_tracking = 1;
+        //     $req_mail->provider_refresh_token = '';
+        //     $req_mail->expires_at = $token->expires_in;
+        //     $req_mail->provider_token = $token->access_token;
+        //     $req_mail->save();
 
-            return back();
-        }
+        //     return back();
+        // }
+
+        // $ms = new MsmailController;
+        // $client = $ms->getClient();
+
+        // $authorizationUrl = $client->getAuthorizationUrl(['scope' => $client->scope]);
+        // Session::put('OAuth2.state',$client->getState());
+        // return redirect($authorizationUrl);
+
+        // Process 2---
+        $authUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize';
+        $query   = http_build_query([
+            'client_id'     => env('MS_CLIENT_ID'),
+            'client_secret' => env('MS_CLIENT_SECRET'),
+            'response_type' => 'code',
+            'redirect_uri'  => 'http://localhost:8085/ms-callback',
+            'scope'         => 'User.Read Mail.Send Mail.ReadWrite offline_access'
+        ]);
+
+        return redirect()->away($authUrl . '?' . $query);
     }
 }
