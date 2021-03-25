@@ -25,7 +25,7 @@
                     </div>
                     <div class="form-group">
                         <label for="">Body</label>
-                        <textarea class="form-control" name="body" id="body_message" placeholder="Reply" rows="10"></textarea>
+                        <textarea class="form-control summernote" name="body" id="body_message" placeholder="Reply" rows="10"></textarea>
                     </div>
         
                     <div class="form-group">
@@ -42,10 +42,4 @@
             </div>
         </form>
     </div>
-</div> 
-<script>
-(function () {
-    new FroalaEditor("#body_message", {
-    })
-})()
-</script>
+</div>

@@ -6,7 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\EmailTracker;
 use App\Http\Controllers\GmailController;
 use Session;
-
+use Str;
+use Storage;
 class HomeController extends Controller
 {
     /**
@@ -113,5 +114,21 @@ class HomeController extends Controller
         ]);
 
         return redirect()->away($authUrl . '?' . $query);
+    }
+
+    public function uploadFile(Request $request)
+    {
+        if($request->hasFile('editorfile'))
+        {
+            $file = $request->file('editorfile');
+
+            $fullName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);;
+            $extension = strtolower($file->getClientOriginalExtension());
+            $mime = $file->getClientMimeType();
+            $newfilename = Str::uuid().'.'.$extension;
+            Storage::put($newfilename, file_get_contents($file));
+
+            return env('APP_URL').Storage::url($newfilename);
+        }
     }
 }

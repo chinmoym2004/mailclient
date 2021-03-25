@@ -43,6 +43,7 @@ Route::post("reply", 'App\Http\Controllers\MailController@replyEmail')->name("re
 
 Route::get("/mi-me", 'App\Http\Controllers\MsmailController@me');
 Route::any('/ms-callback','App\Http\Controllers\MsmailController@callback');
+Route::post("/upload-files", 'App\Http\Controllers\HomeController@uploadFile');
 
 Auth::routes();
 

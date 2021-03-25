@@ -246,12 +246,13 @@ class MailController extends Controller
                     "subject"=>$request->subject,
                     'body'=>[
                         'contentType'=>'HTML',
-                        'content'=>@$request->body
+                        'content'=>$request->body
                     ],
                     'toRecipients'=>$process_to,
                 ],
                 "saveToSentItems"=>true
             ];
+
             if( $request->file('attachment')) {
 
                 $attachmentData=[];
@@ -261,7 +262,7 @@ class MailController extends Controller
                     $fileName = $attachment->getClientOriginalName();  
                     $extension = $attachment->extension();
                     $newfilename = Str::uuid().'.'.$extension;
-                    \Storage::put($newfilename,$attachment);
+                    //\Storage::put($newfilename,$attachment);
 
                     $attachments[] =  [
                         'filename' => $fileName,
@@ -271,18 +272,32 @@ class MailController extends Controller
                         'file_path' => $newfilename
                     ];
 
-                    $attachmentData[]=[
-                        
+                    $data_to_send['attachments'][]=[
+                        "@odata.type"=>"#microsoft.graph.fileAttachment",
+                        "name"=>$fileName,
+                        "contentType"=>$attachment->getClientMimeType(),
+                        "contentBytes"=>base64_encode($attachment)
                     ];
-
-                    //file_put_contents($save_file_path, $image_file);
                 }
+            }
+           
+            $sendmail = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/sendMail',$data_to_send);
+            $sendmail = json_decode($sendmail,true);
 
+            if(!$ms->isValidResponse($sendmail))
+            {
+                if($ms->refreshToken($email))
+                {
+                    $sendmail = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/sendMail',$data_to_send);
+                    $sendmail = json_decode($sendmail,true);
+                }
+                else
+                {
+                    echo "ERROR : Failed to get Refresh token.  Failed to send mail";
+                }
             }
 
-            $sendmail = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/sendMail',$data_to_send);
-
-
+            echo "\n\n\nnewline\n\n\n";
             print_r($sendmail);
         }
 	}
@@ -329,143 +344,191 @@ class MailController extends Controller
         $message = Message::find($request->message_id);
         $thread = Thread::where('thread_id',$message->thread_id)->first();
 
+        $email = $thread->user;
 
-        $gc = new GmailController;
-        $email = $thread->user;    
-        $existingtoken = json_encode(['access_token'=>$email->provider_token,'expires_in'=>$email->expires_at,'refresh_token'=>$email->provider_refresh_token]);
-        // check if the token is validate 
-        $client = $gc->isValidToken($existingtoken);
-        if(!$client)
+        if($email->platform=='gmail')
         {
-            // if not then refresh it and update the table
-            $client =  $gc->refreshToken($email);
-        }
 
-        if($client)
-		{
-            try 
+            $gc = new GmailController;
+                
+            $existingtoken = json_encode(['access_token'=>$email->provider_token,'expires_in'=>$email->expires_at,'refresh_token'=>$email->provider_refresh_token]);
+            // check if the token is validate 
+            $client = $gc->isValidToken($existingtoken);
+            if(!$client)
             {
-                //dd(implode(",",$this->getCleanToEmail($message->from)));
-				$service = new \Google_Service_Gmail($client);
-				$user = 'me';
-				$newmessage = new \Swift_Message();
-				$newmessage->setFrom($this->getCleanFromEmail($message->to));//$this->getCleanFromEmail($message->to)
-				$newmessage->setTo($this->getCleanToEmail($message->from)); // array inputs
-				$newmessage->setContentType("text/html");
-				$newmessage->setBody($request->body);
-                $newmessage->setSubject($thread->subject);
-				$newmessage->toString();
-				    
-                $attachments = [];
-				if( $request->file('attachment')) {
-					if(is_array($request->file('attachment'))) {
-						foreach($request->file('attachment') as $attachment) {
-							$path = $attachment->getPathName();
-							$fileName = $attachment->getClientOriginalName();  
-							$newmessage->attach(
-							\Swift_Attachment::fromPath($path)->setFilename($fileName)
-                            );
+                // if not then refresh it and update the table
+                $client =  $gc->refreshToken($email);
+            }
 
-                            $extension = $attachment->extension();
+            if($client)
+    		{
+                try 
+                {
+                    //dd(implode(",",$this->getCleanToEmail($message->from)));
+    				$service = new \Google_Service_Gmail($client);
+    				$user = 'me';
+    				$newmessage = new \Swift_Message();
+    				$newmessage->setFrom($this->getCleanFromEmail($message->to));//$this->getCleanFromEmail($message->to)
+    				$newmessage->setTo($this->getCleanToEmail($message->from)); // array inputs
+    				$newmessage->setContentType("text/html");
+    				$newmessage->setBody($request->body);
+                    $newmessage->setSubject($thread->subject);
+    				$newmessage->toString();
+    				    
+                    $attachments = [];
+    				if( $request->file('attachment')) {
+    					if(is_array($request->file('attachment'))) {
+    						foreach($request->file('attachment') as $attachment) {
+    							$path = $attachment->getPathName();
+    							$fileName = $attachment->getClientOriginalName();  
+    							$newmessage->attach(
+    							\Swift_Attachment::fromPath($path)->setFilename($fileName)
+                                );
+
+                                $extension = $attachment->extension();
+                                $newfilename = Str::uuid().'.'.$extension;
+                                \Storage::put($newfilename,$attachment);
+
+                                $attachments[] =  [
+                                    'filename' => $fileName,
+                                    'mimeType' => $attachment->getClientMimeType(),
+                                    'data'     => '',
+                                    'attachment_id' => '',
+                                    'file_path' => $newfilename
+                                ];
+                                //file_put_contents($save_file_path, $image_file);
+                                
+    						}
+    					} else {
+    						$path = $request->file('attachment')->getPathName();
+    						$fileName = $request->file('attachment')->getClientOriginalName();  
+    						$newmessage->attach(
+    							\Swift_Attachment::fromPath($path)->setFilename($fileName)
+                                );
+                                
+                            $extension = $request->file('attachment')->extension();
                             $newfilename = Str::uuid().'.'.$extension;
-                            \Storage::put($newfilename,$attachment);
+                            \Storage::put($newfilename,$request->file('attachment'));
 
                             $attachments[] =  [
                                 'filename' => $fileName,
-                                'mimeType' => $attachment->getClientMimeType(),
+                                'mimeType' => $request->file('attachment')->getClientMimeType(),
                                 'data'     => '',
                                 'attachment_id' => '',
                                 'file_path' => $newfilename
                             ];
-                            //file_put_contents($save_file_path, $image_file);
-                            
-						}
-					} else {
-						$path = $request->file('attachment')->getPathName();
-						$fileName = $request->file('attachment')->getClientOriginalName();  
-						$newmessage->attach(
-							\Swift_Attachment::fromPath($path)->setFilename($fileName)
-                            );
-                            
-                        $extension = $request->file('attachment')->extension();
-                        $newfilename = Str::uuid().'.'.$extension;
-                        \Storage::put($newfilename,$request->file('attachment'));
+    					}
+    				} 
+    				// The message needs to be encoded in Base64URL
+    				$mime = rtrim(strtr(base64_encode($newmessage), '+/', '-_'), '=');
+                    $msg = new \Google_Service_Gmail_Message();
+                    $msg->setThreadId($thread->thread_id);
+                    $msg->setRaw($mime);
+                    
+                    // print_r($gc->decodeBody($msg->raw));exit;
+                    // echo base64_decode($msg->raw);
+                    // exit;
 
-                        $attachments[] =  [
-                            'filename' => $fileName,
-                            'mimeType' => $request->file('attachment')->getClientMimeType(),
-                            'data'     => '',
-                            'attachment_id' => '',
-                            'file_path' => $newfilename
-                        ];
-					}
-				} 
-				// The message needs to be encoded in Base64URL
-				$mime = rtrim(strtr(base64_encode($newmessage), '+/', '-_'), '=');
-                $msg = new \Google_Service_Gmail_Message();
-                $msg->setThreadId($thread->thread_id);
-                $msg->setRaw($mime);
-                
-                // print_r($gc->decodeBody($msg->raw));exit;
-                // echo base64_decode($msg->raw);
-                // exit;
+    		
+                    $messageobj = $service->users_messages->send("me", $msg);                
 
-		
-                $messageobj = $service->users_messages->send("me", $msg);                
+                    // Enter into DB , Messages
+                    $message = $thread->messages()->create(['body'=>$request->body,'message_id'=>$messageobj->id,'from'=>$message->to,'to'=>$message->from,'record_time'=>Date('Y-m-d H:i:s')]);
 
-                // Enter into DB , Messages
-                $message = $thread->messages()->create(['body'=>$request->body,'message_id'=>$messageobj->id,'from'=>$message->to,'to'=>$message->from,'record_time'=>Date('Y-m-d H:i:s')]);
+                    if(count($attachments))
+                    {
+                        foreach($attachments as $key=>$att)
+                            $attachments[$key]['message_id']=$messageobj->id;
 
-                if(count($attachments))
-                {
-                    foreach($attachments as $key=>$att)
-                        $attachments[$key]['message_id']=$messageobj->id;
+                        $message->attachments()->insert($attachments);
+                    }
 
-                    $message->attachments()->insert($attachments);
+                    return response()->json(['reload'=>true],200);
+                    
+    			} catch (Exception $e) {
+                    report($e);
+                    return response()->json(['message'=>'Someting went wrong.\nError: '.$e->getMessage()],400);
+    			}
+    			
+    		}else
+    		{
+    			return response()->json(['message'=>'Invalid Token, Can\'t send mail'],400);
+    		}
+        }
+        elseif($email->platform=='msmail')
+        {
+            //print_r($request->all());exit;
+            // Send for MS mail
+            $process_to = [];
+            $tos = explode(",", $message->to);
+            foreach ($tos as $to) {
+                $process_to[]=[
+                    'emailAddress'=>[
+                        'address'=>$to
+                    ],
+                ];
+            }
+            $attachments = [];
+
+            $ms = new MsmailController;
+            $client = $ms->getClient();
+
+            $data_to_send = [
+                'message'=>[
+                    'body'=>[
+                        'contentType'=>'HTML',
+                        'content'=>$request->body
+                    ],
+                ],
+                "saveToSentItems"=>true
+            ];
+
+            if( $request->file('attachment')) {
+
+                $attachmentData=[];
+
+                foreach($request->file('attachment') as $attachment) {
+                    $path = $attachment->getPathName();
+                    $fileName = $attachment->getClientOriginalName();  
+                    $extension = $attachment->extension();
+                    $newfilename = Str::uuid().'.'.$extension;
+                    //\Storage::put($newfilename,$attachment);
+
+                    $attachments[] =  [
+                        'filename' => $fileName,
+                        'mimeType' => $attachment->getClientMimeType(),
+                        'data'     => '',
+                        'attachment_id' => '',
+                        'file_path' => $newfilename
+                    ];
+
+                    $data_to_send['attachments'][]=[
+                        "@odata.type"=>"#microsoft.graph.fileAttachment",
+                        "name"=>$fileName,
+                        "contentType"=>$attachment->getClientMimeType(),
+                        "contentBytes"=>base64_encode($attachment)
+                    ];
                 }
+            }
+           
+            $sendmail = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages/'.$message->message_id.'/replyAll',$data_to_send);
+            $sendmail = json_decode($sendmail,true);
 
-                return response()->json(['reload'=>true],200);
-                
-			} catch (Exception $e) {
-                report($e);
-                return response()->json(['message'=>'Someting went wrong.\nError: '.$e->getMessage()],400);
-			}
-			
-		}else
-		{
-			return response()->json(['message'=>'Invalid Token, Can\'t send mail'],400);
-		}
+            if(!$ms->isValidResponse($sendmail))
+            {
+                if($ms->refreshToken($email))
+                {
+                    $sendmail = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages/'.$message->message_id.'/replyAll',$data_to_send);
+                    $sendmail = json_decode($sendmail,true);
+                }
+                else
+                {
+                    echo "ERROR : Failed to get Refresh token.  Failed to send mail";
+                }
+            }
 
-        // dd($thread);
-		// $user = User::find(1);
-		// $client = $this->isValidToken($user->google_token);
-		// if($client)
-		// {
-		// 	try {
-		// 		$service = new \Google_Service_Gmail($client);
-			
-		// 		$user = 'me';
-		// 		$message = new \Swift_Message();
-		// 		$message->setFrom("muthusharp1st@gmail.com");
-		// 		$message->setTo(['marimuthu.m@dsignzmedia.in'=>'Marimuthu']);
-		// 		$message->setContentType("text/html");
-		// 		$message->setBody($request->body);
-		// 		$message->setSubject('Here is my subject');
-		// 		$message->toString();
-			
-		// 		// The message needs to be encoded in Base64URL
-		// 		$mime = rtrim(strtr(base64_encode($message), '+/', '-_'), '=');
-		// 		$msg = new \Google_Service_Gmail_Message();
-		// 		$msg->setRaw($mime);
-		
-		// 		$service->users_messages->send("me", $msg);
-		// 	} catch (Exception $e) {
-		// 		echo $e->getMessage();
-		// 	}
-			
-		// }else
-		// {
-		// 	return redirect('/gmail/auth');
-		// }
+            echo "\n\n\nnewline\n\n\n";
+            print_r($sendmail);
+        }
 	}
 }

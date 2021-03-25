@@ -60,8 +60,7 @@
         </div>
         @endforeach 
         <div class="card-footer">
-            <a href="#" class="card-link">Reply</a>
-            <div class="card">
+            <div class="">
                 <form method="POST" enctype='multipart/form-data' action="{{ route('reply') }}" class="ajaxFormSubmit">
                     <input type="hidden" name="message_id" value="{{$lastmessage->id}}"/>
                     {{ csrf_field() }}
@@ -73,7 +72,7 @@
                     
                     <div class="form-group">
                         <label for="">Body</label>
-                        <textarea class="form-control" name="body" id="body_message" placeholder="Reply" rows="10"></textarea>
+                        <textarea class="form-control summernote" name="body" id="body_message" placeholder="Reply" rows="10"></textarea>
                     </div>
         
                     <div class="form-group">

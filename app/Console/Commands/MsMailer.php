@@ -42,16 +42,7 @@ class MsMailer extends Command
      * @return int
      */
 
-    public function isValidResponse($response)
-    {   
-
-        if(isset($response['error']) && $response['error']['code']=='InvalidAuthenticationToken')
-        {
-            return 0;
-        }
-        else 
-            return 1;
-    }
+    
 
     public function handle()
     {
@@ -63,7 +54,7 @@ class MsMailer extends Command
         {
             $message_url = $graph_url.'me/messages';
             $mail_array = $this->pullMail($message_url,$email->provider_token);
-            if(!$this->isValidResponse($mail_array))
+            if(!$ms->isValidResponse($mail_array))
             {
                 if($ms->refreshToken($email))
                 {

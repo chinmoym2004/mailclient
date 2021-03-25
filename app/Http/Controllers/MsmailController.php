@@ -14,6 +14,17 @@ class MsmailController extends Controller
 {
 
 
+    public function isValidResponse($response)
+    {   
+
+        if(isset($response['error']) && $response['error']['code']=='InvalidAuthenticationToken')
+        {
+            return 0;
+        }
+        else 
+            return 1;
+    }
+
 	function getClient()
 	{
 	    $provider = new \TheNetworg\OAuth2\Client\Provider\Azure([
