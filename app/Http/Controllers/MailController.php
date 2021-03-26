@@ -390,10 +390,9 @@ class MailController extends Controller
                 $message->message_id=$eachmail['id'];
                 $message->save();
                 info("After : ".$message->message_id);
-                break;
-
                 //update all atachent ids too
                 Attachment::where('message_id',$old_id)->update(['message_id'=>$message->message_id]);
+                break;
             }
         }
     }
@@ -410,7 +409,7 @@ class MailController extends Controller
             // save locally
             Storage::put($newfilename,$attachment);
 
-            $attachments[$newfilename] =  [
+            $eachattr=  [
                 'filename' => $fileName,
                 'mimeType' => $attachment->getClientMimeType(),
                 'data'     => '',
