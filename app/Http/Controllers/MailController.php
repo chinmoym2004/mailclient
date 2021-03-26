@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Thread;
 use App\Models\Message;
+use App\Models\Attachment;
 
 use App\Models\EmailTracker;
 use App\Http\Controllers\GmailController;
@@ -409,6 +410,7 @@ class MailController extends Controller
             $message = Message::where('meta_data',$eachmail['internetMessageId'])->first();
             if($message)
             {
+                $old_id = $message->message_id;
                 info("Some update has happedned");
                 info($message->id);
                 info("Before : ".$message->message_id);
@@ -416,6 +418,9 @@ class MailController extends Controller
                 $message->save();
                 info("After : ".$message->message_id);
                 break;
+
+                //update all atachent ids too
+                Attachment::where('message_id',$old_id)->update(['message_id'=>$message->message_id]);
             }
         }
     }
@@ -594,17 +599,6 @@ class MailController extends Controller
             $messageobj = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages/'.$message->message_id.'/createReplyAll');
             $messageobj = json_decode($messageobj,true);
 
-            // $graph = new Graph();
-            // $graph
-            //     ->setBaseUrl("https://graph.microsoft.com/")
-            //     ->setAccessToken($email->provider_token);
-
-            // $messageobj = $graph->createRequest("POST", '/me/messages/'.$message->message_id.'/createReplyAll')
-            // ->execute()
-            // ->getBody();
-
-
-            // print_r($messageobj);exit;
 
             if(!$ms->isValidResponse($messageobj))
             {
