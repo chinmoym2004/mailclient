@@ -25,7 +25,7 @@ class MsmailController extends Controller
             return 1;
     }
 
-	function getClient()
+	public function getClient()
 	{
 	    $provider = new \TheNetworg\OAuth2\Client\Provider\Azure([
             'clientId'          => env('MS_CLIENT_ID'),

@@ -12,6 +12,9 @@ use App\Http\Controllers\MsmailController;
 
 use Str;
 
+use Microsoft\Graph\Graph;
+use Microsoft\Graph\Model;
+
 class MailController extends Controller
 {
     /**
@@ -242,15 +245,12 @@ class MailController extends Controller
             $client = $ms->getClient();
 
             $data_to_send = [
-                'message'=>[
-                    "subject"=>$request->subject,
-                    'body'=>[
-                        'contentType'=>'HTML',
-                        'content'=>$request->body
-                    ],
-                    'toRecipients'=>$process_to,
+                "subject"=>$request->subject,
+                'body'=>[
+                    'contentType'=>'HTML',
+                    'content'=>$request->body
                 ],
-                "saveToSentItems"=>true
+                'toRecipients'=>$process_to
             ];
 
             if( $request->file('attachment')) {
@@ -280,15 +280,57 @@ class MailController extends Controller
                     ];
                 }
             }
-           
-            $sendmail = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/sendMail',$data_to_send);
+            
+            // First  /me/messages crete mail and then send it. 
+            // On create we'll get the mail id as return and on send we don't get anything return 
+
+            $messageobj = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages',$data_to_send);
+            $messageobj = json_decode($messageobj,true);
+
+            if(!$ms->isValidResponse($messageobj))
+            {
+                if($ms->refreshToken($email))
+                {
+                    $messageobj = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages',$data_to_send);
+                    $messageobj = json_decode($messageobj,true);
+                }
+                else
+                {
+                    echo "ERROR : Failed to get Refresh token.  Failed to send mail";
+                    exit;
+                }
+            }
+            
+            // Enter into DB , Thread
+            $data['thread_id']=$messageobj['conversationId'];
+            $data['subject'] = $request->subject;
+            $data['record_time'] = date('Y-m-d H:i:s');
+            $dbthread = $email->threads()->where('thread_id',$messageobj['conversationId'])->first();
+            if(!$dbthread)
+                $dbthread = $email->threads()->create($data);
+
+            // Enter into DB , Messages
+            $message = $dbthread->messages()->create(['body'=>$request->body,'message_id'=>$messageobj['id'],'from'=>$email->email,'to'=>$request->to,'record_time'=>Date('Y-m-d H:i:s'),'meta_data'=>$messageobj['internetMessageId']]);
+
+            if($messageobj['hasAttachments'])
+            {
+                // foreach($attachments as $key=>$att)
+                //     $attachments[$key]['message_id']=$messageobj->id;
+
+                // $message->attachments()->insert($attachments);
+            }
+           // return redirect('/custom-mail');
+
+            // Send mail 
+
+            $sendmail = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages/'.$messageobj['id'].'/send');
             $sendmail = json_decode($sendmail,true);
 
             if(!$ms->isValidResponse($sendmail))
             {
                 if($ms->refreshToken($email))
                 {
-                    $sendmail = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/sendMail',$data_to_send);
+                    $sendmail = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages/'.$messageobj['id'].'/send');
                     $sendmail = json_decode($sendmail,true);
                 }
                 else
@@ -297,8 +339,12 @@ class MailController extends Controller
                 }
             }
 
-            echo "\n\n\nnewline\n\n\n";
-            print_r($sendmail);
+            // Message ID will be different at this point .. So we should find the new id by sending get top 1 mail , we'll take top 3 just to be on the safe side
+            sleep(1);// Need to wait for a while to get the update , not always works fast. 
+            $this->searchAndUpdateNewIdForThisMessage($email,$ms);
+
+            return response()->json(['redirect_to'=>url('/custom-mail')],200);
+            
         }
 	}
 
@@ -338,6 +384,41 @@ class MailController extends Controller
         }
         return $clean_emails;
     } 
+
+    public function searchAndUpdateNewIdForThisMessage($email,$ms)
+    {
+        $message_url = 'https://graph.microsoft.com/v1.0/me/messages?$top=3';
+        $searchmail =  \Illuminate\Support\Facades\Http::withToken($email->provider_token)->get($message_url);
+        $searchmail = json_decode($searchmail,true);
+
+        if(!$ms->isValidResponse($searchmail))
+        {
+            if($ms->refreshToken($email))
+            {
+                $message_url = 'https://graph.microsoft.com/v1.0/me/messages?$top=3';
+                $searchmail =  \Illuminate\Support\Facades\Http::withToken($email->provider_token)->get($message_url);
+                $searchmail = json_decode($searchmail,true);
+            }
+            else
+            {
+                echo "ERROR : Failed to get Refresh token.  Failed to send mail";
+            }
+        }
+
+        foreach ($searchmail['value'] as $eachmail) {
+            $message = Message::where('meta_data',$eachmail['internetMessageId'])->first();
+            if($message)
+            {
+                info("Some update has happedned");
+                info($message->id);
+                info("Before : ".$message->message_id);
+                $message->message_id=$eachmail['id'];
+                $message->save();
+                info("After : ".$message->message_id);
+                break;
+            }
+        }
+    }
 
 	public function replyEmail(Request $request) {
         
@@ -474,51 +555,118 @@ class MailController extends Controller
             $client = $ms->getClient();
 
             $data_to_send = [
-                'message'=>[
-                    'body'=>[
-                        'contentType'=>'HTML',
-                        'content'=>$request->body
-                    ],
-                ],
-                "saveToSentItems"=>true
+                'body'=>[
+                    'contentType'=>'HTML',
+                    'content'=>$request->body
+                ]
             ];
 
-            if( $request->file('attachment')) {
+            // if( $request->file('attachment')) {
 
-                $attachmentData=[];
+            //     $attachmentData=[];
 
-                foreach($request->file('attachment') as $attachment) {
-                    $path = $attachment->getPathName();
-                    $fileName = $attachment->getClientOriginalName();  
-                    $extension = $attachment->extension();
-                    $newfilename = Str::uuid().'.'.$extension;
-                    //\Storage::put($newfilename,$attachment);
+            //     foreach($request->file('attachment') as $attachment) {
+            //         $path = $attachment->getPathName();
+            //         $fileName = $attachment->getClientOriginalName();  
+            //         $extension = $attachment->extension();
+            //         $newfilename = Str::uuid().'.'.$extension;
+            //         //\Storage::put($newfilename,$attachment);
 
-                    $attachments[] =  [
-                        'filename' => $fileName,
-                        'mimeType' => $attachment->getClientMimeType(),
-                        'data'     => '',
-                        'attachment_id' => '',
-                        'file_path' => $newfilename
-                    ];
+            //         $attachments[] =  [
+            //             'filename' => $fileName,
+            //             'mimeType' => $attachment->getClientMimeType(),
+            //             'data'     => '',
+            //             'attachment_id' => '',
+            //             'file_path' => $newfilename
+            //         ];
 
-                    $data_to_send['attachments'][]=[
-                        "@odata.type"=>"#microsoft.graph.fileAttachment",
-                        "name"=>$fileName,
-                        "contentType"=>$attachment->getClientMimeType(),
-                        "contentBytes"=>base64_encode($attachment)
-                    ];
+            //         $data_to_send['attachments'][]=[
+            //             "@odata.type"=>"#microsoft.graph.fileAttachment",
+            //             "name"=>$fileName,
+            //             "contentType"=>$attachment->getClientMimeType(),
+            //             "contentBytes"=>base64_encode($attachment)
+            //         ];
+            //     }
+            // }
+
+            
+           
+            $messageobj = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages/'.$message->message_id.'/createReplyAll');
+            $messageobj = json_decode($messageobj,true);
+
+            // $graph = new Graph();
+            // $graph
+            //     ->setBaseUrl("https://graph.microsoft.com/")
+            //     ->setAccessToken($email->provider_token);
+
+            // $messageobj = $graph->createRequest("POST", '/me/messages/'.$message->message_id.'/createReplyAll')
+            // ->execute()
+            // ->getBody();
+
+
+            // print_r($messageobj);exit;
+
+            if(!$ms->isValidResponse($messageobj))
+            {
+                if($ms->refreshToken($email))
+                {
+                    $messageobj = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages/'.$message->message_id.'/createReplyAll');
+                    $messageobj = json_decode($messageobj,true);
+                }
+                else
+                {
+                    echo "ERROR : Failed to get Refresh token.  Failed to send mail";
                 }
             }
-           
-            $sendmail = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages/'.$message->message_id.'/replyAll',$data_to_send);
+
+            // Enter into DB , Thread
+            $data['thread_id']=$messageobj['conversationId'];
+            $data['subject'] = $request->subject;
+            $data['record_time'] = date('Y-m-d H:i:s');
+            $dbthread = $email->threads()->where('thread_id',$messageobj['conversationId'])->first();
+            if(!$dbthread)
+                $dbthread = $email->threads()->create($data);
+
+            // Enter into DB , Messages
+            $body = $request->body.'<br/><br/>'.$messageobj['body']['content'];
+            $message = $dbthread->messages()->create(['body'=>$body,'message_id'=>$messageobj['id'],'from'=>$email->email,'to'=>$message->to,'record_time'=>Date('Y-m-d H:i:s'),'meta_data'=>$messageobj['internetMessageId']]);
+
+            if($messageobj['hasAttachments'])
+            {
+                // foreach($attachments as $key=>$att)
+                //     $attachments[$key]['message_id']=$messageobj->id;
+
+                // $message->attachments()->insert($attachments);
+            }
+
+            // ================ Update Mail  
+            $updatemail = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->patch('https://graph.microsoft.com/v1.0/me/messages/'.$message->message_id,['body'=>['content'=>$body,'contentType'=>'HTML']]);
+            $updatemail = json_decode($updatemail,true);
+
+            if(!$ms->isValidResponse($updatemail))
+            {
+                if($ms->refreshToken($email))
+                {
+                    $updatemail = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->patch('https://graph.microsoft.com/v1.0/me/messages/'.$message->message_id,[['body']=>['content'=>$body,'contentType'=>'HTML']]);
+                    $updatemail = json_decode($updatemail,true);
+                }
+                else
+                {
+                    echo "ERROR : Failed to get Refresh token.  Failed to send mail";
+                }
+            }
+            
+
+            /// ================ Now we need to send the Mail 
+
+            $sendmail = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages/'.$message->message_id.'/send');
             $sendmail = json_decode($sendmail,true);
 
             if(!$ms->isValidResponse($sendmail))
             {
                 if($ms->refreshToken($email))
                 {
-                    $sendmail = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages/'.$message->message_id.'/replyAll',$data_to_send);
+                    $sendmail = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages/'.$message->message_id.'/send');
                     $sendmail = json_decode($sendmail,true);
                 }
                 else
@@ -527,8 +675,12 @@ class MailController extends Controller
                 }
             }
 
-            echo "\n\n\nnewline\n\n\n";
-            print_r($sendmail);
+            // Message ID will be different at this point .. So we should find the new id by sending get top 1 mail , we'll take top 3 just to be on the safe side
+            sleep(1);// Need to wait for a while to get the update , not always works fast. 
+            $this->searchAndUpdateNewIdForThisMessage($email,$ms);
+
+            return response()->json(['reload'=>true],200);
+
         }
 	}
 }

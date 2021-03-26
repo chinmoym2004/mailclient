@@ -47,12 +47,16 @@ class MsMailer extends Command
     public function handle()
     {
         $graph_url = 'https://graph.microsoft.com/v1.0/';
+        
+        $pullfor = date('Y-m-d',strtotime('2021-03-25'));
 
         $ms = new MsmailController;
+
         $emails = EmailTracker::where('enable_tracking',1)->where('platform','msmail')->get();
         foreach($emails as $email)
         {
-            $message_url = $graph_url.'me/messages';
+            $message_url = $graph_url.'me/messages?$top=10';
+
             $mail_array = $this->pullMail($message_url,$email->provider_token);
             if(!$ms->isValidResponse($mail_array))
             {
@@ -65,11 +69,13 @@ class MsMailer extends Command
                     echo "ERROR : Failed to get Refresh token.  Will retry in next run";
                 }
             }
-            
-
             if(count($mail_array['value']))
             {
                 foreach ($mail_array['value'] as $eachmail) {
+
+                    if(isset($eachmail['isDraft']) && $eachmail['isDraft']==1)
+                        continue;
+
                     $data['thread_id']=$eachmail['conversationId'];
                     $data['subject'] = $eachmail['subject'];
                     $data['record_time'] = $eachmail['receivedDateTime'];
@@ -80,15 +86,25 @@ class MsMailer extends Command
 
                     if(!$thread->messages()->where('message_id',$eachmail['id'])->count())
                     {
-                        $message = $thread->messages()->create(['body'=>$eachmail['body']['content'],'message_id'=>$eachmail['id'],'from'=>$this->cleanEmail($eachmail['from']),'to'=>$this->cleanEmail($eachmail['toRecipients']),'record_time'=>$eachmail['receivedDateTime']]);
+                        $new = 1;
+                        // check if the internetMessageId exist in table 
+                        $message = $thread->messages()->where('meta_data',$eachmail['internetMessageId'])->first();
+                        if(!$message)
+                            $message = $thread->messages()->create(['body'=>$eachmail['body']['content'],'message_id'=>$eachmail['id'],'from'=>$this->cleanEmail($eachmail['from']),'to'=>$this->cleanEmail($eachmail['toRecipients']),'record_time'=>$eachmail['receivedDateTime'],'meta_data'=>$eachmail['internetMessageId']]);
+                        else 
+                        {
+                            $new=0;
+                            $message->message_id=$eachmail['id'];
+                            $message->save();
+                        }
 
                         // check if has attachemnts 
-                        if($eachmail['hasAttachments'])
+                        if($eachmail['hasAttachments'] && $new)
                         {
                             $att_url = $graph_url.'me/messages/'.$eachmail['id'].'/attachments';
                             $attachments =  $this->pullAttachments($att_url,$email->provider_token);
 
-                            if(!$this->isValidResponse($att_url))
+                            if(!$ms->isValidResponse($att_url))
                             {
                                 if($ms->refreshToken($email))
                                 {
@@ -131,7 +147,7 @@ class MsMailer extends Command
                 'attachment_id' => $attachment['id'],
                 'file_path' => $newfilename
             ];
-            $filecontent     = $attachment['contentBytes'];//base64_decode(strtr($attachment->data, '-_', '+/'));  
+            $filecontent     =  base64_decode(strtr($attachment['contentBytes'], '-_', '+/'));  
             //file_put_contents($save_file_path, $filecontent);
             \Storage::put($newfilename,$filecontent);
         }
