@@ -15,6 +15,7 @@ use Str;
 
 use Microsoft\Graph\Graph;
 use Microsoft\Graph\Model;
+use Storage;
 
 class MailController extends Controller
 {
@@ -253,37 +254,12 @@ class MailController extends Controller
                 ],
                 'toRecipients'=>$process_to
             ];
-
-            if( $request->file('attachment')) {
-
-                $attachmentData=[];
-
-                foreach($request->file('attachment') as $attachment) {
-                    $path = $attachment->getPathName();
-                    $fileName = $attachment->getClientOriginalName();  
-                    $extension = $attachment->extension();
-                    $newfilename = Str::uuid().'.'.$extension;
-                    //\Storage::put($newfilename,$attachment);
-
-                    $attachments[] =  [
-                        'filename' => $fileName,
-                        'mimeType' => $attachment->getClientMimeType(),
-                        'data'     => '',
-                        'attachment_id' => '',
-                        'file_path' => $newfilename
-                    ];
-
-                    $data_to_send['attachments'][]=[
-                        "@odata.type"=>"#microsoft.graph.fileAttachment",
-                        "name"=>$fileName,
-                        "contentType"=>$attachment->getClientMimeType(),
-                        "contentBytes"=>base64_encode($attachment)
-                    ];
-                }
-            }
             
+            
+            // CREATE =================
             // First  /me/messages crete mail and then send it. 
             // On create we'll get the mail id as return and on send we don't get anything return 
+            // This will create a draft and we can add files to it
 
             $messageobj = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages',$data_to_send);
             $messageobj = json_decode($messageobj,true);
@@ -313,16 +289,13 @@ class MailController extends Controller
             // Enter into DB , Messages
             $message = $dbthread->messages()->create(['body'=>$request->body,'message_id'=>$messageobj['id'],'from'=>$email->email,'to'=>$request->to,'record_time'=>Date('Y-m-d H:i:s'),'meta_data'=>$messageobj['internetMessageId']]);
 
-            if($messageobj['hasAttachments'])
-            {
-                // foreach($attachments as $key=>$att)
-                //     $attachments[$key]['message_id']=$messageobj->id;
+            // Check each attachment and add 1 after another with the mesage            
+            // Do the file upload 
+            if($request->file('attachment'))
+                $this->MsFileUpload($email,$message,$messageobj,$request->file('attachment'),$ms);
+            
 
-                // $message->attachments()->insert($attachments);
-            }
-           // return redirect('/custom-mail');
-
-            // Send mail 
+            // ================  Prepare Send mail 
 
             $sendmail = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages/'.$messageobj['id'].'/send');
             $sendmail = json_decode($sendmail,true);
@@ -422,6 +395,108 @@ class MailController extends Controller
                 //update all atachent ids too
                 Attachment::where('message_id',$old_id)->update(['message_id'=>$message->message_id]);
             }
+        }
+    }
+
+    public function MsFileUpload($email,$message,$messageobj,$files,$ms)
+    {
+        foreach($files as $attachment) 
+        {
+            $path = $attachment->getPathName();
+            $fileName = $attachment->getClientOriginalName();  
+            $extension = $attachment->extension();
+            $newfilename = Str::uuid().'.'.$extension;
+                
+            // save locally
+            Storage::put($newfilename,$attachment);
+
+            $attachments[$newfilename] =  [
+                'filename' => $fileName,
+                'mimeType' => $attachment->getClientMimeType(),
+                'data'     => '',
+                'attachment_id' => '',
+                'file_path' => $newfilename
+            ];
+
+
+            //if file size more than 4 MB
+            // 1. create upload session
+            // $file =  $attachment;
+
+
+            // $uploadfile=['AttachmentItem'=>['attachmentType'=>"file","name"=>$fileName,'size'=>$attachment->getSize()]];
+
+            // $uploadsession=$graph->createRequest("POST", "/me/messages/".$messageobj['id']."/attachments/createUploadSession")
+            // ->attachBody($uploadfile)
+            // ->setReturnType(Model\UploadSession::class)
+            // ->execute();
+
+            // //2. upload bytes
+            // $fragSize =320 * 1024;// 1024 * 1024 * 4;
+            // $graph_url = $uploadsession->getUploadUrl();
+
+            // $fileSize = $attachment->getSize();
+            // $numFragments = ceil($fileSize / $fragSize);
+            // $bytesRemaining = $fileSize;
+            // $i = 0;
+            // while ($i < $numFragments) {
+            //     $chunkSize = $numBytes = $fragSize;
+            //     $start = $i * $fragSize;
+            //     $end = $i * $fragSize + $chunkSize - 1;
+            //     $offset = $i * $fragSize;
+            //     if ($bytesRemaining < $chunkSize) 
+            //     {
+            //         $chunkSize = $numBytes = $bytesRemaining;
+            //         $end = $fileSize - 1;
+            //     }
+                
+            //     // get contents using offset
+            //     $data = stream_get_contents($attachment, $chunkSize, $offset);
+            //     $content_range = "bytes " . $start . "-" . $end . "/" . $fileSize;
+            //     $headers = array(
+            //                 "Content-Length"=> $numBytes,
+            //                 "Content-Range"=> $content_range
+            //             );
+            //     $uploadByte = $graph->createRequest("PUT", $graph_url)
+            //             ->addHeaders($headers)
+            //             ->attachBody($data)
+            //                 ->setReturnType(Model\UploadSession::class)
+            //                 ->setTimeout("1000")
+            //                 ->execute();
+            //     $bytesRemaining = $bytesRemaining - $chunkSize;
+            //             $i++;
+            // }
+
+
+            // $response  =  $graph->createRequest("PUT", "")->upload($fileName);
+
+      
+            $attachmentData=[
+                "@odata.type"=>"#microsoft.graph.fileAttachment",
+                "name"=>$fileName,
+                "contentType"=>$attachment->getClientMimeType(),
+                "contentBytes"=>base64_encode(file_get_contents($attachment))
+            ];
+
+            $sendattachents = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages/'.$messageobj['id'].'/attachments',$attachmentData);
+            $sendattachents = json_decode($sendattachents,true);
+
+            if(!$ms->isValidResponse($sendattachents))
+            {
+                if($ms->refreshToken($email))
+                {
+                    $sendattachents = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages/'.$messageobj['id'].'/attachments',$attachmentData);
+                    $sendattachents = json_decode($sendattachents,true);
+                }
+                else
+                {
+                    echo "ERROR : Failed to get Refresh token.  Failed to send mail";
+                }
+            }
+
+            // once we have the message id , lets save it in DB 
+            $eachattr['attachment_id']=$sendattachents['id'];
+            $message->attachments()->create($eachattr);
         }
     }
 
@@ -566,34 +641,6 @@ class MailController extends Controller
                 ]
             ];
 
-            // if( $request->file('attachment')) {
-
-            //     $attachmentData=[];
-
-            //     foreach($request->file('attachment') as $attachment) {
-            //         $path = $attachment->getPathName();
-            //         $fileName = $attachment->getClientOriginalName();  
-            //         $extension = $attachment->extension();
-            //         $newfilename = Str::uuid().'.'.$extension;
-            //         //\Storage::put($newfilename,$attachment);
-
-            //         $attachments[] =  [
-            //             'filename' => $fileName,
-            //             'mimeType' => $attachment->getClientMimeType(),
-            //             'data'     => '',
-            //             'attachment_id' => '',
-            //             'file_path' => $newfilename
-            //         ];
-
-            //         $data_to_send['attachments'][]=[
-            //             "@odata.type"=>"#microsoft.graph.fileAttachment",
-            //             "name"=>$fileName,
-            //             "contentType"=>$attachment->getClientMimeType(),
-            //             "contentBytes"=>base64_encode($attachment)
-            //         ];
-            //     }
-            // }
-
             
            
             $messageobj = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->post('https://graph.microsoft.com/v1.0/me/messages/'.$message->message_id.'/createReplyAll');
@@ -625,14 +672,7 @@ class MailController extends Controller
             $body = $request->body.'<br/><br/>'.$messageobj['body']['content'];
             $message = $dbthread->messages()->create(['body'=>$body,'message_id'=>$messageobj['id'],'from'=>$email->email,'to'=>$message->to,'record_time'=>Date('Y-m-d H:i:s'),'meta_data'=>$messageobj['internetMessageId']]);
 
-            if($messageobj['hasAttachments'])
-            {
-                // foreach($attachments as $key=>$att)
-                //     $attachments[$key]['message_id']=$messageobj->id;
-
-                // $message->attachments()->insert($attachments);
-            }
-
+            
             // ================ Update Mail  
             $updatemail = \Illuminate\Support\Facades\Http::asJson()->withToken($email->provider_token)->patch('https://graph.microsoft.com/v1.0/me/messages/'.$message->message_id,['body'=>['content'=>$body,'contentType'=>'HTML']]);
             $updatemail = json_decode($updatemail,true);
@@ -649,6 +689,10 @@ class MailController extends Controller
                     echo "ERROR : Failed to get Refresh token.  Failed to send mail";
                 }
             }
+
+            // Do the file upload 
+            if($request->file('attachment'))
+                $this->MsFileUpload($email,$message,$messageobj,$request->file('attachment'),$ms);
             
 
             /// ================ Now we need to send the Mail 
