@@ -114,6 +114,7 @@ class MailFinder extends Command
                 $data['thread_id']=$thread->id;
                 $data['subject'] = $subject;
                 $data['record_time'] = $tmp;
+                $data['is_inbox']=1;
 
                 $dbthread = $email->threads()->where('thread_id',$thread->id)->first();
                 if(!$dbthread)

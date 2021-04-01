@@ -36,6 +36,7 @@ Route::get("create/message", 'App\Http\Controllers\GmailController@createMessage
 Route::post("sendmessage", 'App\Http\Controllers\GmailController@sendEmail')->name("senddMessage");
 
 
+Route::get('/sent-mail','App\Http\Controllers\MailController@sentBox');
 Route::resource('/custom-mail','App\Http\Controllers\MailController');
 Route::get("compose-mail", 'App\Http\Controllers\MailController@createMessage')->name("compose-mail");
 Route::post("send", 'App\Http\Controllers\MailController@sendEmail')->name("send");

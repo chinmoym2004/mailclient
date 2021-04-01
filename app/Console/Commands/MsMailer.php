@@ -48,7 +48,7 @@ class MsMailer extends Command
     {
         $graph_url = 'https://graph.microsoft.com/v1.0/';
         
-        $pullfor = date('Y-m-d',strtotime('2021-03-25'));
+        //$pullfor = date('Y-m-d',strtotime('2021-03-26'));
 
         $ms = new MsmailController;
 
@@ -79,6 +79,7 @@ class MsMailer extends Command
                     $data['thread_id']=$eachmail['conversationId'];
                     $data['subject'] = $eachmail['subject'];
                     $data['record_time'] = $eachmail['receivedDateTime'];
+                    $data['is_inbox']=1;
 
                     $thread = $email->threads()->where('thread_id',$eachmail['conversationId'])->first();
                     if(!$thread)

@@ -15,7 +15,9 @@ class Thread extends Model
         'thread_id',
         'subject',
         'record_time',
-        'meta_data'
+        'meta_data',
+        'has_sent',
+        'is_inbox'
     ];
 
     public function messages()

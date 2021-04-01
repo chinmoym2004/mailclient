@@ -28,9 +28,19 @@ class MailController extends Controller
     {
         //
         $limit = 20;
-        $threads = Thread::paginate($limit);
+        $threads = Thread::where('is_inbox',1)->paginate($limit);
         return view('mail.inbox',compact('threads'));
     }
+
+    public function sentBox(Request $request)
+    {
+        //
+        $limit = 20;
+        $threads = Thread::where('has_sent',1)->paginate($limit);
+        return view('mail.sent',compact('threads'));
+    }
+
+    
 
     /**
      * Show the form for creating a new resource.
@@ -201,6 +211,7 @@ class MailController extends Controller
                     $data['thread_id']=$messageobj->threadId;
                     $data['subject'] = $request->subject;
                     $data['record_time'] = date('Y-m-d H:i:s');
+                    $data['has_sent'] = 1;
                     $dbthread = $email->threads()->where('thread_id',$messageobj->threadId)->first();
                     if(!$dbthread)
                         $dbthread = $email->threads()->create($data);
@@ -282,6 +293,7 @@ class MailController extends Controller
             $data['thread_id']=$messageobj['conversationId'];
             $data['subject'] = $request->subject;
             $data['record_time'] = date('Y-m-d H:i:s');
+            $data['has_sent'] = 1;
             $dbthread = $email->threads()->where('thread_id',$messageobj['conversationId'])->first();
             if(!$dbthread)
                 $dbthread = $email->threads()->create($data);
@@ -603,6 +615,9 @@ class MailController extends Controller
                         $message->attachments()->insert($attachments);
                     }
 
+                    $thread->has_sent=1;
+                    $thread->save();
+
                     return response()->json(['reload'=>true],200);
                     
     			} catch (Exception $e) {
@@ -666,6 +681,9 @@ class MailController extends Controller
             $dbthread = $email->threads()->where('thread_id',$messageobj['conversationId'])->first();
             if(!$dbthread)
                 $dbthread = $email->threads()->create($data);
+
+            $dbthread->has_sent=1;
+            $dbthread->save();
 
             // Enter into DB , Messages
             $body = $request->body.'<br/><br/>'.$messageobj['body']['content'];
