@@ -43,8 +43,12 @@ Route::post("send", 'App\Http\Controllers\MailController@sendEmail')->name("send
 Route::post("reply", 'App\Http\Controllers\MailController@replyEmail')->name("reply");
 
 Route::get("/mi-me", 'App\Http\Controllers\MsmailController@me');
-Route::any('/ms-callback','App\Http\Controllers\MsmailController@callback');
+Route::any('/msmail','App\Http\Controllers\MsmailController@callback');
 Route::post("/upload-files", 'App\Http\Controllers\HomeController@uploadFile');
+
+Route::resource('/sps','App\Http\Controllers\SpController');
+
+
 
 Auth::routes();
 

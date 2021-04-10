@@ -109,7 +109,7 @@ class HomeController extends Controller
             'client_id'     => env('MS_CLIENT_ID'),
             'client_secret' => env('MS_CLIENT_SECRET'),
             'response_type' => 'code',
-            'redirect_uri'  => 'http://localhost:8085/ms-callback',
+            'redirect_uri'  => 'http://localhost:8019/msmail',
             'scope'         => 'User.Read Mail.Send Mail.ReadWrite offline_access'
         ]);
 

@@ -30,7 +30,7 @@ class MsmailController extends Controller
 	    $provider = new \TheNetworg\OAuth2\Client\Provider\Azure([
             'clientId'          => env('MS_CLIENT_ID'),
             'clientSecret'      => env('MS_CLIENT_SECRET'),
-            'redirectUri'       => 'http://localhost:8085/ms-callback',
+            'redirectUri'       => 'http://localhost:8019/msmail',
             //Optional
             'scopes'            => ['openid'],
             //Optional
@@ -55,7 +55,7 @@ class MsmailController extends Controller
             'client_secret' => env('MS_CLIENT_SECRET'),
             'refresh_token' => $user->provider_refresh_token,
             'grant_type'    => 'refresh_token',
-            'redirect_uri'  => 'http://localhost:8085/ms-callback',
+            'redirect_uri'  => 'http://localhost:8019/msmail',
             'scope'         => 'User.Read Mail.Send Mail.ReadWrite offline_access'
         ]);
 
@@ -77,7 +77,7 @@ class MsmailController extends Controller
             'client_secret' => env('MS_CLIENT_SECRET'),
             'code'          => $request->input('code'),
             'grant_type'    => 'authorization_code',
-            'redirect_uri'  => 'http://localhost:8085/ms-callback',
+            'redirect_uri'  => 'http://localhost:8019/msmail',
             'scope'         => 'User.Read Mail.Send Mail.ReadWrite offline_access'
         ]);
 
