@@ -13,8 +13,8 @@
 	<script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
 	<script src="http://malsup.github.io/jquery.form.js"></script>
 
-	<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.js"></script>
+	<!-- <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.js"></script> -->
 </head>
 <body>
 	<style type="text/css">

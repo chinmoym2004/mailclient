@@ -11,8 +11,9 @@
             <thead>
                 <tr>
                     <th>Name</th>
-                    <th>SP</th>
-                    <th>Fields</th>
+                    <th>Query</th>
+                    <th>In Fields</th>
+                    <th>Out Fields</th>
                     <th>Status</th>
                     <th>Action</th>
                 </tr>
@@ -22,13 +23,15 @@
                 @foreach($sps as $sp)
                 <tr>
                     <td><a href="{{url('sps/'.$sp->id)}}" class="commonmodal">{{$sp->sp_name}}</a></td>
-                    <td>{{$sp->sp_details}}</td>
-                    <td>{{$sp->return_fields}}</td>
+                    <td>{{$sp->raw_query}}</td>
+                    <td>{{$sp->in_fields}}</td>
+                    <td>{{$sp->out_fields}}</td>
                     <td>{{$sp->migrated?'Deployed':'Not Deployed'}}</td>
                     <td>
-                        <a href="#">Delete</a>
-                        <a href="#">Deploy</a>
-                        <a href="#">Edit</a>
+                        <div class="btn-group">
+                            <a href="{{url('sps/'.encrypt($sp->id).'/edit')}}" class="ajax btn btn-primary ml-1" style="margin-right: 2px">Edit</a>
+                            <a target="_blank" href="{{url('sps/'.encrypt($sp->id))}}" class="btn btn-success">Report</a>
+                        </div>
                     </td>
                 </tr>
                 @endforeach
